@@ -1,0 +1,997 @@
+<!--
+=======================================================================
+  2026 DYNASTY DRAFT DASHBOARD — index.html
+=======================================================================
+  HOW TO REFRESH DATA:
+  • Overwrite draft_board.csv, vegas_overlay.csv, or idp_model.csv at
+    any time. The page re-reads all CSVs fresh on every load (no cache).
+  • round_report.md and cheatsheet.html are linked, not embedded here.
+
+  DRAFT DAY — LIVE TRACKER TAB:
+  1. Open this file in any browser (no server needed — file:// works).
+  2. Go to the "Live Tracker" tab.
+  3. Paste picks one at a time or in bulk into the text area using the
+     format: 1.01 Josh Allen QB BUF [Team Name]
+     Mark your own picks with [me] or [ME] as the team name.
+  4. Hit "Process Picks". Drafted players disappear from the board.
+     Your roster auto-fills. Needs tracker updates instantly.
+  5. 🚨 ALERT fires automatically if a gem falls 1+ round past their
+     target_round from draft_board.csv.
+
+  GARRETT / VERSE TRADE (June 2, 2026):
+  • Myles Garrett → LAR (reflected in idp_model.csv, team=LAR)
+  • Jared Verse → CLE (received in trade, gem_flag=1 maintained)
+  • Both team assignments are already updated in all CSV files.
+  • No manual edits needed — data reads from CSVs on load.
+=======================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>2026 Dynasty SF Draft — GM Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060b14;--bg2:rgba(255,255,255,0.04);--bg3:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.1);--text:#e0e8f0;--muted:#6b7fa3;
+  --gem:#4CAF50;--bust:#ff6b6b;--idp:#ff9f43;--qb:#FFD700;
+  --boost:#00b4d8;--tab-active:#1a2740;
+}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:14px;min-height:100vh}
+a{color:var(--boost);text-decoration:none}
+
+/* HEADER */
+.header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.header h1{font-size:16px;font-weight:700;letter-spacing:.5px}
+.header .badge{background:var(--gem);color:#000;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.header .trade-note{font-size:11px;color:var(--idp);margin-left:auto}
+
+/* TABS */
+.tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:12px 18px;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;font-size:13px;font-weight:600;color:var(--muted);transition:all .15s;min-height:44px;display:flex;align-items:center}
+.tab:hover{color:var(--text);background:var(--bg2)}
+.tab.active{color:var(--text);border-bottom-color:var(--boost);background:var(--tab-active)}
+.tab-content{display:none;padding:16px}
+.tab-content.active{display:block}
+
+/* TOOLBAR */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+.search-box{flex:1;min-width:160px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-family:inherit;font-size:13px;outline:none}
+.search-box:focus{border-color:var(--boost)}
+.filter-btn{padding:6px 14px;border:1px solid var(--border);background:var(--bg2);color:var(--muted);border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;transition:all .15s;min-height:36px}
+.filter-btn:hover{color:var(--text);border-color:var(--text)}
+.filter-btn.active{color:#000;font-weight:700}
+.filter-btn.QB.active{background:var(--qb);border-color:var(--qb)}
+.filter-btn.RB.active{background:#6ee7b7;border-color:#6ee7b7}
+.filter-btn.WR.active{background:var(--boost);border-color:var(--boost)}
+.filter-btn.TE.active{background:#c084fc;border-color:#c084fc}
+.filter-btn.IDP.active{background:var(--idp);border-color:var(--idp)}
+.filter-btn.ALL.active{background:var(--text);border-color:var(--text)}
+
+/* TABLES */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#0d1827;padding:10px 12px;text-align:left;font-weight:700;cursor:pointer;white-space:nowrap;border-bottom:1px solid var(--border);user-select:none;position:sticky;top:0}
+th:hover{background:#142235}
+th .sort-arrow{margin-left:4px;opacity:.4}
+th.sorted .sort-arrow{opacity:1}
+td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.04);white-space:nowrap;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg3)}
+tr.gem-row td:first-child{border-left:3px solid var(--gem)}
+tr.bust-row td:first-child{border-left:3px solid var(--bust)}
+tr.gem-row{background:rgba(76,175,80,0.06)}
+tr.bust-row{background:rgba(255,107,107,0.06)}
+
+/* BADGES */
+.badge-pos{display:inline-block;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:700}
+.pos-QB{background:rgba(255,215,0,0.15);color:var(--qb)}
+.pos-RB{background:rgba(110,231,183,0.15);color:#6ee7b7}
+.pos-WR{background:rgba(0,180,216,0.15);color:var(--boost)}
+.pos-TE{background:rgba(192,132,252,0.15);color:#c084fc}
+.pos-EDGE,.pos-LB,.pos-DB,.pos-DL{background:rgba(255,159,67,0.15);color:var(--idp)}
+.badge-tier{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+.tier-R1{background:rgba(255,215,0,.2);color:var(--qb)}
+.tier-R2{background:rgba(76,175,80,.2);color:var(--gem)}
+.tier-R3{background:rgba(76,175,80,.15);color:#81c784}
+.tier-R4{background:rgba(0,180,216,.15);color:var(--boost)}
+.tier-R5,.tier-R6{background:rgba(255,159,67,.15);color:var(--idp)}
+.tier-R7,.tier-R8,.tier-R9,.tier-R10{background:rgba(107,127,163,.15);color:var(--muted)}
+.badge-round{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--bg3);border:1px solid var(--border)}
+.gem-badge{color:var(--gem);font-weight:700}
+.bust-badge{color:var(--bust);font-weight:700}
+.boost-badge{background:rgba(0,180,216,.15);color:var(--boost);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.fade-badge{background:rgba(255,107,107,.15);color:var(--bust);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.neutral-badge{color:var(--muted);font-size:11px}
+.idp-tier-elite{background:rgba(255,159,67,.2);color:var(--idp);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+.idp-tier-solid{background:rgba(76,175,80,.15);color:var(--gem);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+.idp-tier-stash{background:rgba(0,180,216,.15);color:var(--boost);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+.idp-tier-bust{background:rgba(255,107,107,.15);color:var(--bust);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+
+/* FPPG bar */
+.fppg-bar{display:flex;align-items:center;gap:8px}
+.fppg-track{width:80px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
+.fppg-fill{height:100%;border-radius:3px;background:var(--idp)}
+
+/* SIM DRAFT */
+.sim-btn{padding:10px 24px;background:var(--boost);color:#000;border:none;border-radius:6px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;min-height:44px;transition:opacity .15s}
+.sim-btn:hover{opacity:.85}
+.sim-btn:disabled{opacity:.4;cursor:not-allowed}
+.sim-progress{margin:10px 0;font-size:12px;color:var(--muted)}
+.steal-icon{color:var(--gem);font-weight:700}
+.fade-icon{color:var(--bust);font-weight:700}
+
+/* LIVE TRACKER */
+.pick-area{width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:6px;font-family:inherit;font-size:13px;min-height:120px;resize:vertical;outline:none}
+.pick-area:focus{border-color:var(--boost)}
+.process-btn{padding:10px 20px;background:var(--gem);color:#000;border:none;border-radius:6px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;min-height:44px}
+.process-btn:hover{opacity:.85}
+.reset-btn{padding:10px 20px;background:var(--bg3);color:var(--bust);border:1px solid var(--bust);border-radius:6px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;min-height:44px}
+.roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin:16px 0}
+.roster-slot{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
+.roster-slot .slot-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.roster-slot .slot-player{font-size:13px;font-weight:600;min-height:20px}
+.slot-filled{border-color:var(--gem)!important;background:rgba(76,175,80,.06)!important}
+.needs-bar{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.need-pill{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border)}
+.need-met{background:rgba(76,175,80,.15);border-color:var(--gem);color:var(--gem)}
+.need-open{background:var(--bg2);color:var(--muted)}
+.alert-banner{background:rgba(255,107,107,.12);border:1px solid var(--bust);border-radius:6px;padding:12px 16px;margin:8px 0;font-size:13px;font-weight:600;color:var(--bust)}
+.alert-banner::before{content:"🚨 ALERT: ";font-weight:700}
+.pick-log{max-height:240px;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px}
+.pick-log-entry{padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
+.pick-log-entry:last-child{border-bottom:none}
+.pick-log-entry.my-pick{color:var(--gem);font-weight:700}
+
+/* SECTION LABELS */
+.section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px}
+.stat-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
+.stat-row:last-child{border-bottom:none}
+
+/* Vegas summary cards */
+.vegas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:16px}
+.vegas-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
+.vegas-card.boost{border-color:rgba(0,180,216,.4);background:rgba(0,180,216,.05)}
+.vegas-card.fade{border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.05)}
+.vegas-card .team-name{font-weight:700;font-size:13px}
+.vegas-card .win-total{font-size:20px;font-weight:700;margin:4px 0}
+.vegas-card.boost .win-total{color:var(--boost)}
+.vegas-card.fade .win-total{color:var(--bust)}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+  .header h1{font-size:14px}
+  .tab{padding:10px 12px;font-size:12px}
+  td,th{padding:8px 8px;font-size:12px}
+  .toolbar{gap:6px}
+  .filter-btn{padding:5px 10px;font-size:11px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ 2026 DYNASTY SF DRAFT</h1>
+  <span class="badge">SUPERFLEX · TE PREM · IDP</span>
+  <span class="trade-note">🔄 Garrett→LAR · Verse→CLE (June 2, 2026)</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('draft')">📋 Draft Board</div>
+  <div class="tab" onclick="switchTab('sim')">🎲 Sim Draft</div>
+  <div class="tab" onclick="switchTab('idp')">🛡 IDP Board</div>
+  <div class="tab" onclick="switchTab('vegas')">🎰 Vegas Overlay</div>
+  <div class="tab" onclick="switchTab('tracker')">🔴 Live Tracker</div>
+</div>
+
+<!-- ═══════════════════════════ DRAFT BOARD ═══════════════════════════ -->
+<div id="tab-draft" class="tab-content active">
+  <div class="toolbar">
+    <input class="search-box" id="boardSearch" placeholder="Search player…" oninput="filterBoard()">
+    <button class="filter-btn ALL active" onclick="setPosFilter('ALL',this)">ALL</button>
+    <button class="filter-btn QB" onclick="setPosFilter('QB',this)">QB</button>
+    <button class="filter-btn RB" onclick="setPosFilter('RB',this)">RB</button>
+    <button class="filter-btn WR" onclick="setPosFilter('WR',this)">WR</button>
+    <button class="filter-btn TE" onclick="setPosFilter('TE',this)">TE</button>
+    <button class="filter-btn IDP" onclick="setPosFilter('IDP',this)">IDP</button>
+  </div>
+  <div class="table-wrap">
+    <table id="boardTable">
+      <thead>
+        <tr>
+          <th onclick="sortBoard('my_rank')" data-col="my_rank">Rank<span class="sort-arrow">▼</span></th>
+          <th onclick="sortBoard('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
+          <th onclick="sortBoard('pos')" data-col="pos">Pos<span class="sort-arrow">▼</span></th>
+          <th onclick="sortBoard('team')" data-col="team">Team<span class="sort-arrow">▼</span></th>
+          <th onclick="sortBoard('age')" data-col="age">Age<span class="sort-arrow">▼</span></th>
+          <th onclick="sortBoard('consensus_rank')" data-col="consensus_rank">Con.<span class="sort-arrow">▼</span></th>
+          <th onclick="sortBoard('value_gap')" data-col="value_gap">Gap<span class="sort-arrow">▼</span></th>
+          <th onclick="sortBoard('target_round')" data-col="target_round">Target<span class="sort-arrow">▼</span></th>
+          <th>Tier</th>
+          <th>Flag</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody id="boardBody"></tbody>
+    </table>
+  </div>
+  <div class="section-label" style="margin-top:12px" id="boardCount"></div>
+</div>
+
+<!-- ═══════════════════════════ SIM DRAFT ═══════════════════════════ -->
+<div id="tab-sim" class="tab-content">
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px">
+      Runs 100 simulated 10-team drafts using each player's ADP ± gaussian variance (~1 round σ). Identifies steals and overdrafted players.
+    </div>
+    <div class="toolbar">
+      <button class="sim-btn" id="simBtn" onclick="runSims()">▶ Run 100 Sims</button>
+      <span class="sim-progress" id="simStatus"></span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="simTable">
+      <thead>
+        <tr>
+          <th onclick="sortSim('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
+          <th onclick="sortSim('pos')" data-col="pos">Pos<span class="sort-arrow">▼</span></th>
+          <th onclick="sortSim('adp')" data-col="adp">ADP<span class="sort-arrow">▼</span></th>
+          <th onclick="sortSim('avgPick')" data-col="avgPick">Avg Pick<span class="sort-arrow">▼</span></th>
+          <th onclick="sortSim('earliest')" data-col="earliest">Earliest<span class="sort-arrow">▼</span></th>
+          <th onclick="sortSim('latest')" data-col="latest">Latest<span class="sort-arrow">▼</span></th>
+          <th onclick="sortSim('pctOwned')" data-col="pctOwned">% Owned<span class="sort-arrow">▼</span></th>
+          <th>Signal</th>
+        </tr>
+      </thead>
+      <tbody id="simBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ IDP BOARD ═══════════════════════════ -->
+<div id="tab-idp" class="tab-content">
+  <div class="toolbar">
+    <input class="search-box" id="idpSearch" placeholder="Search IDP…" oninput="renderIDP()">
+    <button class="filter-btn active" onclick="setIDPFilter('ALL',this)" style="background:var(--idp);color:#000">ALL</button>
+    <button class="filter-btn" onclick="setIDPFilter('EDGE',this)">EDGE</button>
+    <button class="filter-btn" onclick="setIDPFilter('LB',this)">LB</button>
+    <button class="filter-btn" onclick="setIDPFilter('DB',this)">DB</button>
+  </div>
+  <div class="table-wrap">
+    <table id="idpTable">
+      <thead>
+        <tr>
+          <th onclick="sortIDP('proj_fppg')" data-col="proj_fppg">FPPG<span class="sort-arrow">▼</span></th>
+          <th onclick="sortIDP('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
+          <th onclick="sortIDP('pos')" data-col="pos">Pos<span class="sort-arrow">▼</span></th>
+          <th onclick="sortIDP('team')" data-col="team">Team<span class="sort-arrow">▼</span></th>
+          <th onclick="sortIDP('age')" data-col="age">Age<span class="sort-arrow">▼</span></th>
+          <th onclick="sortIDP('proj_sacks')" data-col="proj_sacks">Sacks<span class="sort-arrow">▼</span></th>
+          <th onclick="sortIDP('proj_solo_tackles')" data-col="proj_solo_tackles">Solo<span class="sort-arrow">▼</span></th>
+          <th onclick="sortIDP('proj_ints')" data-col="proj_ints">INT<span class="sort-arrow">▼</span></th>
+          <th onclick="sortIDP('proj_tfl')" data-col="proj_tfl">TFL<span class="sort-arrow">▼</span></th>
+          <th onclick="sortIDP('draft_round_target')" data-col="draft_round_target">Target<span class="sort-arrow">▼</span></th>
+          <th>Tier</th>
+        </tr>
+      </thead>
+      <tbody id="idpBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ VEGAS OVERLAY ═══════════════════════════ -->
+<div id="tab-vegas" class="tab-content">
+  <div id="vegasTeamCards" class="vegas-grid"></div>
+  <div class="section-label">All Players by Vegas Context</div>
+  <div class="toolbar">
+    <input class="search-box" id="vegasSearch" placeholder="Search player…" oninput="renderVegas()">
+    <button class="filter-btn active" onclick="setVegasFilter('ALL',this)">ALL</button>
+    <button class="filter-btn" onclick="setVegasFilter('BOOST',this)" style="border-color:var(--boost)">🚀 BOOST</button>
+    <button class="filter-btn" onclick="setVegasFilter('FADE',this)" style="border-color:var(--bust)">📉 FADE</button>
+    <button class="filter-btn" onclick="setVegasFilter('NEUTRAL',this)">NEUTRAL</button>
+  </div>
+  <div class="table-wrap">
+    <table id="vegasTable">
+      <thead>
+        <tr>
+          <th onclick="sortVegas('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
+          <th onclick="sortVegas('team')" data-col="team">Team<span class="sort-arrow">▼</span></th>
+          <th onclick="sortVegas('win_total')" data-col="win_total">Wins O/U<span class="sort-arrow">▼</span></th>
+          <th onclick="sortVegas('vegas_flag')" data-col="vegas_flag">Signal<span class="sort-arrow">▼</span></th>
+          <th>Context</th>
+        </tr>
+      </thead>
+      <tbody id="vegasBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ LIVE TRACKER ═══════════════════════════ -->
+<div id="tab-tracker" class="tab-content">
+  <div id="alertContainer"></div>
+
+  <div class="card" style="margin-bottom:12px">
+    <div class="section-label" style="margin-top:0">Paste Picks</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+      Format: <code>1.03 Ja'Marr Chase WR CIN [me]</code> — use [me] or [ME] for your picks. Paste multiple lines at once.
+    </div>
+    <textarea class="pick-area" id="pickInput" placeholder="1.01 Josh Allen QB BUF [Team Alpha]&#10;1.02 Drake Maye QB NE [Team Beta]&#10;1.03 Ja'Marr Chase WR CIN [me]"></textarea>
+    <div class="toolbar" style="margin-top:10px">
+      <button class="process-btn" onclick="processPicks()">⚡ Process Picks</button>
+      <button class="reset-btn" onclick="resetTracker()">↺ Reset Draft</button>
+    </div>
+  </div>
+
+  <div class="section-label">Roster Needs</div>
+  <div class="needs-bar" id="needsBar"></div>
+
+  <div class="section-label">My Roster</div>
+  <div class="roster-grid" id="rosterGrid"></div>
+
+  <div class="section-label">Pick Log</div>
+  <div class="pick-log" id="pickLog"></div>
+
+  <div class="section-label" style="margin-top:16px">Best Available (Top 20 Remaining)</div>
+  <div class="table-wrap">
+    <table id="availTable">
+      <thead>
+        <tr>
+          <th>Rank</th><th>Player</th><th>Pos</th><th>Team</th><th>Age</th><th>Target</th><th>Flag</th>
+        </tr>
+      </thead>
+      <tbody id="availBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA LAYER
+// ═══════════════════════════════════════════════════════════
+let boardData = [], idpData = [], vegasData = [];
+let boardSort = {col:'my_rank', dir:1};
+let idpSort   = {col:'proj_fppg', dir:-1};
+let vegasSort = {col:'win_total', dir:-1};
+let simSort   = {col:'avgPick', dir:1};
+let posFilter = 'ALL', idpFilter = 'ALL', vegasFilter = 'ALL';
+let simResults = [];
+let draftState = {
+  allPicks: [],
+  myPicks: [],
+  drafted: new Set(),
+  myRoster: {QB:[],RB:[],WR:[],TE:[],EDGE:[],LB:[],DB:[],DL:[],K:[],FLEX:[]},
+  pickNumber: 0
+};
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = [];
+    let cur = '', inQ = false;
+    for (const c of line) {
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    vals.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = vals[i] !== undefined ? vals[i] : '');
+    return obj;
+  });
+}
+
+async function loadCSV(path) {
+  try {
+    const r = await fetch(path + '?v=' + Date.now());
+    if (!r.ok) return [];
+    return parseCSV(await r.text());
+  } catch(e) { return []; }
+}
+
+async function init() {
+  [boardData, idpData, vegasData] = await Promise.all([
+    loadCSV('draft_board.csv'),
+    loadCSV('idp_model.csv'),
+    loadCSV('vegas_overlay.csv')
+  ]);
+  // Coerce numbers
+  boardData.forEach(p => {
+    p.my_rank = +p.my_rank || 999;
+    p.consensus_rank = +p.consensus_rank || 999;
+    p.age = +p.age || 0;
+    p.value_gap = +p.value_gap || 0;
+    p.gem_flag = +p.gem_flag || 0;
+    p.bust_flag = +p.bust_flag || 0;
+    p.adp_round = +p.adp_round || 10;
+    p.target_round = +p.target_round || 10;
+  });
+  idpData.forEach(p => {
+    p.proj_fppg = +p.proj_fppg || 0;
+    p.proj_sacks = +p.proj_sacks || 0;
+    p.proj_solo_tackles = +p.proj_solo_tackles || 0;
+    p.proj_ints = +p.proj_ints || 0;
+    p.proj_tfl = +p.proj_tfl || 0;
+    p.age = +p.age || 0;
+  });
+  vegasData.forEach(p => {
+    p.win_total = +p.win_total || 0;
+  });
+  renderBoard();
+  renderIDP();
+  renderVegas();
+  buildVegasTeamCards();
+  initTracker();
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB SWITCHER
+// ═══════════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const tabs = ['draft','sim','idp','vegas','tracker'];
+    t.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAFT BOARD
+// ═══════════════════════════════════════════════════════════
+function posIsIDP(pos) {
+  return ['EDGE','LB','DB','DL','S','CB'].includes((pos||'').toUpperCase());
+}
+
+function filterBoard() { renderBoard(); }
+
+function setPosFilter(pos, btn) {
+  posFilter = pos;
+  document.querySelectorAll('#tab-draft .filter-btn').forEach(b => {
+    b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  renderBoard();
+}
+
+function getFilteredBoard() {
+  const q = (document.getElementById('boardSearch')?.value || '').toLowerCase();
+  return boardData.filter(p => {
+    if (posFilter !== 'ALL') {
+      if (posFilter === 'IDP') { if (!posIsIDP(p.pos)) return false; }
+      else if (p.pos !== posFilter) return false;
+    }
+    if (q && !p.player.toLowerCase().includes(q) && !(p.team||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function sortBoard(col) {
+  if (boardSort.col === col) boardSort.dir *= -1;
+  else { boardSort.col = col; boardSort.dir = 1; }
+  // numeric cols sort numerically, others alphabetically
+  renderBoard();
+}
+
+function renderBoard() {
+  const numCols = ['my_rank','consensus_rank','age','value_gap','target_round','adp_round'];
+  const data = getFilteredBoard().sort((a,b) => {
+    let av = a[boardSort.col], bv = b[boardSort.col];
+    if (numCols.includes(boardSort.col)) { av = +av; bv = +bv; }
+    if (av < bv) return -boardSort.dir;
+    if (av > bv) return boardSort.dir;
+    return 0;
+  });
+
+  const tbody = document.getElementById('boardBody');
+  tbody.innerHTML = data.map(p => {
+    const isGem = p.gem_flag == 1;
+    const isBust = p.bust_flag == 1;
+    const flag = isGem ? '<span class="gem-badge">💎 GEM</span>' : isBust ? '<span class="bust-badge">💀 BUST</span>' : '—';
+    const prefix = isGem ? '💎 ' : isBust ? '💀 ' : '';
+    const gapNum = +p.value_gap;
+    const gapStr = gapNum > 0 ? `<span style="color:var(--gem)">+${gapNum}</span>` : gapNum < 0 ? `<span style="color:var(--bust)">${gapNum}</span>` : '—';
+    const rowClass = isGem ? 'gem-row' : isBust ? 'bust-row' : '';
+    const posClass = posIsIDP(p.pos) ? 'pos-EDGE' : `pos-${p.pos}`;
+    const targetNum = p.target_round || p.tier || '';
+    const tierKey = (typeof targetNum === 'number' ? `R${targetNum}` : String(targetNum)).replace(/[^RrBb0-9]/g,'') || 'R10';
+    return `<tr class="${rowClass}">
+      <td><strong>${p.my_rank}</strong></td>
+      <td>${prefix}${p.player}</td>
+      <td><span class="badge-pos ${posClass}">${p.pos}</span></td>
+      <td>${p.team}</td>
+      <td>${p.age}</td>
+      <td style="color:var(--muted)">${p.consensus_rank}</td>
+      <td>${gapStr}</td>
+      <td><span class="badge-round">R${p.target_round}</span></td>
+      <td><span class="badge-tier tier-R${p.target_round}">${p.tier||`R${p.target_round}`}</span></td>
+      <td>${flag}</td>
+      <td style="max-width:260px;white-space:normal;font-size:11px;color:var(--muted)">${p.notes||''}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('boardCount').textContent = `Showing ${data.length} of ${boardData.length} players`;
+
+  // Update sort arrows
+  document.querySelectorAll('#boardTable th').forEach(th => {
+    const col = th.dataset.col;
+    th.classList.toggle('sorted', col === boardSort.col);
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow && col === boardSort.col) arrow.textContent = boardSort.dir === 1 ? '▲' : '▼';
+    else if (arrow) arrow.textContent = '▼';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SIM DRAFT
+// ═══════════════════════════════════════════════════════════
+function pickToOverall(pick) {
+  // pick is like "2.05" or just an integer
+  if (typeof pick === 'string' && pick.includes('.')) {
+    const [r, s] = pick.split('.').map(Number);
+    return (r - 1) * 10 + s;
+  }
+  return +pick;
+}
+
+function gaussianRand() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+async function runSims() {
+  const btn = document.getElementById('simBtn');
+  const status = document.getElementById('simStatus');
+  btn.disabled = true;
+  status.textContent = 'Simulating…';
+
+  const players = boardData.slice(0, 120);
+  const SIMS = 100;
+  const TEAMS = 10;
+  const SIGMA = 10; // ~1 round std dev
+
+  const results = players.map(p => ({
+    player: p.player, pos: p.pos, team: p.team,
+    adp: p.my_rank,
+    picks: [], owned: 0
+  }));
+
+  await new Promise(resolve => setTimeout(resolve, 20));
+
+  for (let sim = 0; sim < SIMS; sim++) {
+    // Assign each player a simulated pick = adp + gaussian noise
+    const simBoard = results.map(r => ({
+      ...r, simPick: Math.max(1, Math.round(r.adp + gaussianRand() * SIGMA))
+    })).sort((a,b) => a.simPick - b.simPick);
+
+    // Draft: 10 teams, snake, 12 rounds
+    const ROUNDS = 12;
+    const draftOrder = [];
+    for (let rd = 0; rd < ROUNDS; rd++) {
+      const order = Array.from({length:TEAMS},(_,i)=>i);
+      if (rd % 2 === 1) order.reverse();
+      draftOrder.push(...order);
+    }
+
+    const drafted = new Set();
+    let pickIdx = 0;
+    for (const teamSlot of draftOrder) {
+      // find best available
+      for (const p of simBoard) {
+        if (!drafted.has(p.player)) {
+          drafted.add(p.player);
+          const res = results.find(r => r.player === p.player);
+          if (res) { res.picks.push(pickIdx + 1); res.owned++; }
+          break;
+        }
+      }
+      pickIdx++;
+    }
+  }
+
+  simResults = results.map(r => ({
+    ...r,
+    avgPick: r.picks.length ? +(r.picks.reduce((a,b)=>a+b,0)/r.picks.length).toFixed(1) : 999,
+    earliest: r.picks.length ? Math.min(...r.picks) : 999,
+    latest: r.picks.length ? Math.max(...r.picks) : 999,
+    pctOwned: +((r.owned / SIMS * 100).toFixed(1))
+  }));
+
+  status.textContent = `✅ ${SIMS} sims complete`;
+  btn.disabled = false;
+  renderSim();
+}
+
+function sortSim(col) {
+  if (simSort.col === col) simSort.dir *= -1;
+  else { simSort.col = col; simSort.dir = 1; }
+  renderSim();
+}
+
+function renderSim() {
+  if (!simResults.length) return;
+  const numCols = ['adp','avgPick','earliest','latest','pctOwned'];
+  const data = [...simResults].sort((a,b) => {
+    let av = a[simSort.col], bv = b[simSort.col];
+    if (numCols.includes(simSort.col)) { av=+av; bv=+bv; }
+    if (av < bv) return -simSort.dir;
+    if (av > bv) return simSort.dir;
+    return 0;
+  });
+
+  document.getElementById('simBody').innerHTML = data.map(p => {
+    const diff = p.avgPick - p.adp;
+    let signal = '—';
+    if (diff >= 8) signal = '<span class="steal-icon">🎯 STEAL ZONE</span>';
+    else if (diff <= -8) signal = '<span class="fade-icon">⚠️ OVERDRAFTED</span>';
+    const posClass = posIsIDP(p.pos) ? 'pos-EDGE' : `pos-${p.pos}`;
+    return `<tr>
+      <td>${p.player}</td>
+      <td><span class="badge-pos ${posClass}">${p.pos}</span></td>
+      <td>${p.adp}</td>
+      <td>${p.avgPick}</td>
+      <td>${p.earliest}</td>
+      <td>${p.latest}</td>
+      <td>${p.pctOwned}%</td>
+      <td>${signal}</td>
+    </tr>`;
+  }).join('');
+
+  document.querySelectorAll('#simTable th').forEach(th => {
+    const col = th.dataset.col;
+    th.classList.toggle('sorted', col === simSort.col);
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow && col === simSort.col) arrow.textContent = simSort.dir === 1 ? '▲' : '▼';
+    else if (arrow) arrow.textContent = '▼';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// IDP BOARD
+// ═══════════════════════════════════════════════════════════
+let _idpPosFilter = 'ALL';
+function setIDPFilter(pos, btn) {
+  _idpPosFilter = pos;
+  document.querySelectorAll('#tab-idp .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderIDP();
+}
+
+function sortIDP(col) {
+  if (idpSort.col === col) idpSort.dir *= -1;
+  else { idpSort.col = col; idpSort.dir = 1; }
+  renderIDP();
+}
+
+function renderIDP() {
+  const q = (document.getElementById('idpSearch')?.value || '').toLowerCase();
+  const numCols = ['proj_fppg','proj_sacks','proj_solo_tackles','proj_ints','proj_tfl','age'];
+  const data = idpData.filter(p => {
+    if (_idpPosFilter !== 'ALL' && p.pos !== _idpPosFilter) return false;
+    if (q && !p.player.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b) => {
+    let av = a[idpSort.col], bv = b[idpSort.col];
+    if (numCols.includes(idpSort.col)) { av=+av; bv=+bv; }
+    if (av < bv) return -idpSort.dir;
+    if (av > bv) return idpSort.dir;
+    return 0;
+  });
+
+  const maxFppg = Math.max(...idpData.map(p => p.proj_fppg));
+
+  document.getElementById('idpBody').innerHTML = data.map(p => {
+    const tier = (p.idp_tier||'').toLowerCase();
+    let tierBadge, tierEmoji;
+    if (tier.includes('elite')) { tierBadge = 'idp-tier-elite'; tierEmoji = '🔥 Elite'; }
+    else if (tier.includes('solid')) { tierBadge = 'idp-tier-solid'; tierEmoji = '✅ Solid'; }
+    else if (tier.includes('stash')) { tierBadge = 'idp-tier-stash'; tierEmoji = '📦 Stash'; }
+    else { tierBadge = 'idp-tier-bust'; tierEmoji = '🚫 Bust'; }
+
+    const isGarrett = p.player.includes('Garrett');
+    const isVerse = p.player.includes('Verse');
+    const tradeNote = isGarrett ? ' <span style="font-size:10px;color:var(--idp)">→LAR trade</span>' :
+                      isVerse   ? ' <span style="font-size:10px;color:var(--gem)">→CLE gem</span>' : '';
+
+    const pct = Math.round((p.proj_fppg / maxFppg) * 100);
+    const fppgDisplay = `<div class="fppg-bar">
+      <strong style="color:var(--idp)">${p.proj_fppg}</strong>
+      <div class="fppg-track"><div class="fppg-fill" style="width:${pct}%"></div></div>
+    </div>`;
+
+    return `<tr>
+      <td>${fppgDisplay}</td>
+      <td>${p.player}${tradeNote}</td>
+      <td><span class="badge-pos pos-EDGE">${p.pos}</span></td>
+      <td>${p.team}</td>
+      <td>${p.age}</td>
+      <td>${p.proj_sacks}</td>
+      <td>${p.proj_solo_tackles}</td>
+      <td>${p.proj_ints}</td>
+      <td>${p.proj_tfl}</td>
+      <td><span class="badge-round">${p.draft_round_target}</span></td>
+      <td><span class="${tierBadge}">${tierEmoji}</span></td>
+    </tr>`;
+  }).join('');
+
+  document.querySelectorAll('#idpTable th').forEach(th => {
+    const col = th.dataset.col;
+    th.classList.toggle('sorted', col === idpSort.col);
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow && col === idpSort.col) arrow.textContent = idpSort.dir === 1 ? '▲' : '▼';
+    else if (arrow) arrow.textContent = '▼';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// VEGAS OVERLAY
+// ═══════════════════════════════════════════════════════════
+let _vegasFlagFilter = 'ALL';
+function setVegasFilter(flag, btn) {
+  _vegasFlagFilter = flag;
+  document.querySelectorAll('#tab-vegas .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderVegas();
+}
+
+function sortVegas(col) {
+  if (vegasSort.col === col) vegasSort.dir *= -1;
+  else { vegasSort.col = col; vegasSort.dir = 1; }
+  renderVegas();
+}
+
+function buildVegasTeamCards() {
+  const teamMap = {};
+  vegasData.forEach(p => {
+    if (!teamMap[p.team]) teamMap[p.team] = {team:p.team, win_total:p.win_total, flag:p.vegas_flag};
+  });
+  const teams = Object.values(teamMap).sort((a,b) => b.win_total - a.win_total);
+  const boostTeams = teams.filter(t => t.flag === 'BOOST');
+  const fadeTeams = teams.filter(t => t.flag === 'FADE');
+
+  let html = '';
+  [...boostTeams, ...fadeTeams].slice(0, 12).forEach(t => {
+    const cls = t.flag === 'BOOST' ? 'boost' : t.flag === 'FADE' ? 'fade' : '';
+    html += `<div class="vegas-card ${cls}">
+      <div class="team-name">${t.team}</div>
+      <div class="win-total">${t.win_total}</div>
+      <div style="font-size:11px;color:var(--muted)">${t.flag}</div>
+    </div>`;
+  });
+  document.getElementById('vegasTeamCards').innerHTML = html;
+}
+
+function renderVegas() {
+  const q = (document.getElementById('vegasSearch')?.value || '').toLowerCase();
+  const data = vegasData.filter(p => {
+    if (_vegasFlagFilter !== 'ALL' && p.vegas_flag !== _vegasFlagFilter) return false;
+    if (q && !p.player.toLowerCase().includes(q) && !(p.team||'').toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b) => {
+    let av = a[vegasSort.col], bv = b[vegasSort.col];
+    if (vegasSort.col === 'win_total') { av=+av; bv=+bv; }
+    if (av < bv) return -vegasSort.dir;
+    if (av > bv) return vegasSort.dir;
+    return 0;
+  });
+
+  document.getElementById('vegasBody').innerHTML = data.map(p => {
+    let badge;
+    if (p.vegas_flag === 'BOOST') badge = '<span class="boost-badge">🚀 BOOST</span>';
+    else if (p.vegas_flag === 'FADE') badge = '<span class="fade-badge">📉 FADE</span>';
+    else badge = '<span class="neutral-badge">NEUTRAL</span>';
+    return `<tr>
+      <td>${p.player}</td>
+      <td>${p.team}</td>
+      <td><strong>${p.win_total}</strong></td>
+      <td>${badge}</td>
+      <td style="max-width:240px;white-space:normal;font-size:11px;color:var(--muted)">${p.context_note||''}</td>
+    </tr>`;
+  }).join('');
+
+  document.querySelectorAll('#vegasTable th').forEach(th => {
+    const col = th.dataset.col;
+    th.classList.toggle('sorted', col === vegasSort.col);
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow && col === vegasSort.col) arrow.textContent = vegasSort.dir === 1 ? '▲' : '▼';
+    else if (arrow) arrow.textContent = '▼';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// LIVE TRACKER
+// ═══════════════════════════════════════════════════════════
+const NEEDS = ['QB','QB','RB','RB','WR','WR','TE','IDP','IDP','IDP','FLEX','FLEX'];
+const ROSTER_SLOTS = [
+  {label:'QB1',pos:'QB'},{label:'QB2',pos:'QB'},
+  {label:'RB1',pos:'RB'},{label:'RB2',pos:'RB'},
+  {label:'WR1',pos:'WR'},{label:'WR2',pos:'WR'},
+  {label:'TE1',pos:'TE'},
+  {label:'FLEX1',pos:'FLEX'},{label:'FLEX2',pos:'FLEX'},
+  {label:'IDP1',pos:'IDP'},{label:'IDP2',pos:'IDP'},{label:'IDP3',pos:'IDP'},
+];
+
+function initTracker() {
+  renderRoster();
+  renderNeeds();
+  renderAvailable();
+}
+
+function parsePick(line) {
+  line = line.trim();
+  if (!line) return null;
+  // Format: 1.03 Josh Allen QB BUF [me]
+  const teamMatch = line.match(/\[([^\]]+)\]/);
+  const isMe = teamMatch && ['me','ME','Me'].includes(teamMatch[1].trim());
+  const clean = line.replace(/\[[^\]]+\]/, '').trim();
+  // Try to extract pick number, player name, pos, team
+  const pickMatch = clean.match(/^(\d+\.\d+)\s+(.+)/);
+  let playerPart = pickMatch ? pickMatch[2] : clean;
+  // last token is likely NFL team (2-3 chars uppercase), second-to-last is pos
+  const tokens = playerPart.split(/\s+/);
+  let pos = '', nflTeam = '';
+  const posList = ['QB','RB','WR','TE','K','EDGE','LB','DB','DL','S','CB','DE','DT'];
+  // scan from end
+  if (tokens.length >= 2 && tokens[tokens.length-1].length <= 3 && tokens[tokens.length-1] === tokens[tokens.length-1].toUpperCase()) {
+    nflTeam = tokens.pop();
+  }
+  if (tokens.length >= 2 && posList.includes(tokens[tokens.length-1].toUpperCase())) {
+    pos = tokens.pop().toUpperCase();
+  }
+  const playerName = tokens.join(' ').replace(/^\d+\.\d+\s+/, '').trim();
+  return { pickNum: pickMatch ? pickMatch[1] : String(++draftState.pickNumber), player: playerName, pos, team: nflTeam, isMe };
+}
+
+function processPicks() {
+  const raw = document.getElementById('pickInput').value;
+  const lines = raw.split('\n').filter(l => l.trim());
+  const newPicks = [];
+  lines.forEach(line => {
+    const pick = parsePick(line);
+    if (!pick || !pick.player) return;
+    if (draftState.drafted.has(pick.player.toLowerCase())) return;
+    draftState.drafted.add(pick.player.toLowerCase());
+    draftState.allPicks.push(pick);
+    if (pick.isMe) draftState.myPicks.push(pick);
+    newPicks.push(pick);
+  });
+
+  // Rebuild roster from myPicks
+  ROSTER_SLOTS.forEach(s => s.filled = null);
+  const roster = {QB:[],RB:[],WR:[],TE:[],IDP:[],FLEX:[]};
+  draftState.myPicks.forEach(p => {
+    const pos = p.pos.toUpperCase();
+    if (['QB'].includes(pos)) roster.QB.push(p.player);
+    else if (['RB'].includes(pos)) roster.RB.push(p.player);
+    else if (['WR'].includes(pos)) roster.WR.push(p.player);
+    else if (['TE'].includes(pos)) roster.TE.push(p.player);
+    else if (['EDGE','LB','DB','DL','S','CB','DE','DT'].includes(pos)) roster.IDP.push(p.player);
+    else if (['K'].includes(pos)) roster.FLEX.push(p.player);
+    else roster.FLEX.push(p.player);
+  });
+  draftState.myRoster = roster;
+
+  document.getElementById('pickInput').value = '';
+  renderPickLog(newPicks);
+  renderRoster();
+  renderNeeds();
+  renderAvailable();
+  checkAlerts();
+}
+
+function renderPickLog(newPicks) {
+  const log = document.getElementById('pickLog');
+  newPicks.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'pick-log-entry' + (p.isMe ? ' my-pick' : '');
+    div.textContent = `${p.pickNum} ${p.player} ${p.pos} ${p.team}${p.isMe ? ' ← ME' : ''}`;
+    log.prepend(div);
+  });
+}
+
+function renderRoster() {
+  const r = draftState.myRoster;
+  const slots = [
+    {label:'QB1',arr:r.QB,idx:0},{label:'QB2',arr:r.QB,idx:1},
+    {label:'RB1',arr:r.RB,idx:0},{label:'RB2',arr:r.RB,idx:1},
+    {label:'WR1',arr:r.WR,idx:0},{label:'WR2',arr:r.WR,idx:1},
+    {label:'TE1',arr:r.TE,idx:0},
+    {label:'FLEX1',arr:r.FLEX,idx:0},{label:'FLEX2',arr:r.FLEX,idx:1},
+    {label:'IDP1',arr:r.IDP,idx:0},{label:'IDP2',arr:r.IDP,idx:1},{label:'IDP3',arr:r.IDP,idx:2},
+  ];
+  document.getElementById('rosterGrid').innerHTML = slots.map(s => {
+    const player = s.arr && s.arr[s.idx] ? s.arr[s.idx] : '';
+    return `<div class="roster-slot ${player ? 'slot-filled' : ''}">
+      <div class="slot-label">${s.label}</div>
+      <div class="slot-player">${player || '<span style="color:var(--muted)">—</span>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderNeeds() {
+  const r = draftState.myRoster;
+  const needs = [
+    {label:'QB',have:r.QB.length,need:2},
+    {label:'RB',have:r.RB.length,need:2},
+    {label:'WR',have:r.WR.length,need:2},
+    {label:'TE',have:r.TE.length,need:1},
+    {label:'IDP',have:r.IDP.length,need:3},
+    {label:'FLEX',have:r.FLEX.length,need:2},
+  ];
+  document.getElementById('needsBar').innerHTML = needs.map(n => {
+    const pips = Array.from({length:n.need},(_,i)=>i<n.have?'✅':'⬜').join('');
+    return `<div class="need-pill ${n.have>=n.need?'need-met':'need-open'}">${n.label} ${pips}</div>`;
+  }).join('');
+}
+
+function renderAvailable() {
+  const available = boardData.filter(p => !draftState.drafted.has(p.player.toLowerCase()))
+    .sort((a,b) => a.my_rank - b.my_rank)
+    .slice(0, 20);
+
+  document.getElementById('availBody').innerHTML = available.map(p => {
+    const isGem = p.gem_flag == 1;
+    const isBust = p.bust_flag == 1;
+    const flag = isGem ? '<span class="gem-badge">💎</span>' : isBust ? '<span class="bust-badge">💀</span>' : '—';
+    const posClass = posIsIDP(p.pos) ? 'pos-EDGE' : `pos-${p.pos}`;
+    return `<tr class="${isGem?'gem-row':isBust?'bust-row':''}">
+      <td>${p.my_rank}</td>
+      <td>${p.player}</td>
+      <td><span class="badge-pos ${posClass}">${p.pos}</span></td>
+      <td>${p.team}</td>
+      <td>${p.age}</td>
+      <td><span class="badge-round">R${p.target_round}</span></td>
+      <td>${flag}</td>
+    </tr>`;
+  }).join('');
+}
+
+function checkAlerts() {
+  const container = document.getElementById('alertContainer');
+  const alerts = [];
+
+  // Check: QB run — 3+ QBs taken in recent picks
+  const recentQBs = draftState.allPicks.slice(-10).filter(p => p.pos === 'QB').length;
+  if (recentQBs >= 3) {
+    alerts.push(`QB RUN — ${recentQBs} QBs taken in last 10 picks. Grab one now or wait until Round ${Math.ceil((draftState.myPicks.filter(p=>p.pos==='QB').length>=2?99:draftState.allPicks.length/10)+3)}.`);
+  }
+
+  // Check: gems falling past target round
+  const totalPicks = draftState.allPicks.length;
+  const currentRound = Math.ceil(totalPicks / 10);
+  boardData.filter(p => p.gem_flag == 1).forEach(gem => {
+    if (!draftState.drafted.has(gem.player.toLowerCase()) && currentRound > gem.target_round) {
+      alerts.push(`${gem.player} still available — ${currentRound - gem.target_round} round(s) past target (R${gem.target_round}). Value alert.`);
+    }
+  });
+
+  // QB gap
+  if (draftState.myPicks.length >= 15 && draftState.myRoster.QB.length === 0) {
+    alerts.push('QB GAP ALERT — No QB yet after 15 picks. Must address immediately.');
+  }
+
+  container.innerHTML = alerts.map(a => `<div class="alert-banner">${a}</div>`).join('');
+}
+
+function resetTracker() {
+  if (!confirm('Reset entire draft tracker?')) return;
+  draftState = {allPicks:[],myPicks:[],drafted:new Set(),myRoster:{QB:[],RB:[],WR:[],TE:[],EDGE:[],LB:[],DB:[],DL:[],K:[],FLEX:[]},pickNumber:0};
+  document.getElementById('pickLog').innerHTML = '';
+  document.getElementById('alertContainer').innerHTML = '';
+  renderRoster(); renderNeeds(); renderAvailable();
+}
+
+// ═══════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
