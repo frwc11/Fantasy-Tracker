@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>2026 Dynasty SF Draft — GM Cheatsheet</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #060b14;
+      color: #e0e8f0;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 8px;
+      line-height: 1.5;
+    }
+
+    h1 {
+      color: #00d4ff;
+      font-size: 1.1rem;
+      text-align: center;
+      padding: 12px 8px;
+      border-bottom: 2px solid #00d4ff;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.75rem;
+      color: #8899aa;
+      margin-bottom: 12px;
+    }
+
+    details {
+      border: 1px solid #1a2a3a;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      background: #0a1220;
+      overflow: hidden;
+    }
+
+    summary {
+      padding: 14px 12px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: bold;
+      color: #00d4ff;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      user-select: none;
+      list-style: none;
+      background: #0d1a28;
+      border-bottom: 1px solid #1a2a3a;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+    summary::before { content: '▶ '; font-size: 0.7rem; margin-right: 6px; }
+    details[open] summary::before { content: '▼ '; }
+
+    .section-content {
+      padding: 12px;
+    }
+
+    .tier-label {
+      font-size: 0.7rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin: 6px 0 4px;
+    }
+
+    .tier-1 { background: #0a2a10; color: #4CAF50; border: 1px solid #4CAF50; }
+    .tier-2 { background: #0a1a2a; color: #00d4ff; border: 1px solid #00d4ff; }
+    .tier-3 { background: #1a1a0a; color: #ffd700; border: 1px solid #ffd700; }
+    .tier-4 { background: #1a0a0a; color: #ff9f43; border: 1px solid #ff9f43; }
+
+    .player-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 6px;
+      border-bottom: 1px solid #111c28;
+      min-height: 44px;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .player-row:last-child { border-bottom: none; }
+
+    .player-name { font-weight: bold; font-size: 0.95rem; }
+    .player-meta { font-size: 0.75rem; color: #8899aa; }
+    .player-age { font-size: 0.75rem; color: #ffd700; }
+    .player-note { font-size: 0.72rem; color: #8899aa; width: 100%; margin-top: 2px; }
+
+    .gem { color: #4CAF50; }
+    .bust { color: #ff6b6b; }
+    .idp { color: #ff9f43; }
+    .boost { color: #00d4ff; }
+    .fade { color: #ff6b6b; }
+    .warn { color: #ffd700; }
+    .neutral { color: #e0e8f0; }
+
+    .badge {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .badge-gem { background: #0a2a10; color: #4CAF50; border: 1px solid #4CAF50; }
+    .badge-bust { background: #2a0a0a; color: #ff6b6b; border: 1px solid #ff6b6b; }
+    .badge-idp { background: #2a1a00; color: #ff9f43; border: 1px solid #ff9f43; }
+    .badge-boost { background: #00182a; color: #00d4ff; border: 1px solid #00d4ff; }
+    .badge-fade { background: #2a0a0a; color: #ff6b6b; border: 1px solid #ff6b6b; }
+    .badge-te { background: #1a0a2a; color: #cc88ff; border: 1px solid #cc88ff; }
+    .badge-acl { background: #2a1a00; color: #ffd700; border: 1px solid #ffd700; }
+
+    .fppg-bar {
+      font-size: 0.8rem;
+      color: #ff9f43;
+      font-weight: bold;
+    }
+
+    .round-header {
+      background: #0d1a28;
+      padding: 8px 10px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      border-left: 3px solid #00d4ff;
+    }
+
+    .round-header .range { font-size: 0.75rem; color: #8899aa; }
+
+    .gem-block {
+      background: #051205;
+      border: 1px solid #1a3a1a;
+      border-left: 3px solid #4CAF50;
+      border-radius: 4px;
+      padding: 10px;
+      margin: 6px 0;
+    }
+
+    .bust-block {
+      background: #120505;
+      border: 1px solid #3a1a1a;
+      border-left: 3px solid #ff6b6b;
+      border-radius: 4px;
+      padding: 10px;
+      margin: 6px 0;
+    }
+
+    .gem-block .label { color: #4CAF50; font-size: 0.7rem; font-weight: bold; letter-spacing: 1px; }
+    .bust-block .label { color: #ff6b6b; font-size: 0.7rem; font-weight: bold; letter-spacing: 1px; }
+
+    .gem-block p, .bust-block p {
+      font-size: 0.82rem;
+      margin-top: 4px;
+      color: #c8d8e8;
+    }
+
+    .positional-note {
+      background: #0a1820;
+      border: 1px solid #1a2a3a;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 0.8rem;
+      color: #8899aa;
+      margin-top: 8px;
+    }
+
+    .positional-note strong { color: #00d4ff; }
+
+    /* Vegas flags */
+    .vegas-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .vegas-item {
+      padding: 8px 6px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      min-height: 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .vegas-boost { background: #00182a; border: 1px solid #005566; }
+    .vegas-fade { background: #1a0505; border: 1px solid #440000; }
+
+    .vegas-player { font-weight: bold; color: #e0e8f0; }
+    .vegas-team-ou { font-size: 0.68rem; }
+    .boost-label { color: #00d4ff; }
+    .fade-label { color: #ff6b6b; }
+
+    /* Tracker table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+    }
+
+    thead th {
+      background: #0d1a28;
+      color: #00d4ff;
+      padding: 10px 6px;
+      text-align: left;
+      border-bottom: 2px solid #1a2a3a;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tbody tr:nth-child(even) { background: #0a1220; }
+    tbody tr:nth-child(odd) { background: #060b14; }
+
+    tbody td {
+      padding: 8px 6px;
+      border-bottom: 1px solid #0d1820;
+      color: #c8d8e8;
+      min-height: 44px;
+    }
+
+    tbody td:first-child { color: #8899aa; font-size: 0.7rem; }
+
+    .tracker-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #1a2a3a;
+      color: #e0e8f0;
+      font-family: inherit;
+      font-size: 0.75rem;
+      width: 100%;
+      padding: 2px 0;
+      outline: none;
+    }
+
+    .tracker-input:focus {
+      border-bottom-color: #00d4ff;
+    }
+
+    /* Summary key */
+    .key-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .key-item {
+      padding: 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      text-align: center;
+    }
+
+    .win-table { width: 100%; font-size: 0.72rem; }
+    .win-table td, .win-table th { padding: 5px 4px; border-bottom: 1px solid #111c28; }
+    .win-table th { color: #8899aa; text-align: left; }
+    .win-11 { color: #4CAF50; font-weight: bold; }
+    .win-10 { color: #00d4ff; }
+    .win-9 { color: #aaccee; }
+    .win-8 { color: #8899aa; }
+    .win-7 { color: #ccaa55; }
+    .win-6 { color: #ff9f43; }
+    .win-5 { color: #ff6b6b; }
+    .win-4 { color: #cc3333; font-weight: bold; }
+    .win-3 { color: #ff0000; font-weight: bold; }
+
+    .scoring-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      font-size: 0.78rem;
+    }
+    .scoring-item {
+      background: #0a1220;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid #1a2a3a;
+    }
+    .scoring-cat { color: #8899aa; font-size: 0.68rem; }
+    .scoring-val { color: #ff9f43; font-weight: bold; }
+
+    @media (max-width: 400px) {
+      body { font-size: 15px; padding: 6px; }
+      h1 { font-size: 1rem; }
+      .vegas-grid { grid-template-columns: 1fr; }
+      .key-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<h1>🏆 2026 Dynasty SF Draft<br>GM Cheatsheet</h1>
+<div class="subtitle">
+  10-Team Dynasty Startup | Superflex (2QB) | Full PPR + TE Premium (+0.5/catch)<br>
+  IDP: Sack=4 | Solo=1.5 | Ast=1 | TFL=2 | INT=4 | FF=3 | PD=2 | HitQB=1 | 2+Sack Bonus=2 | Safety=3 | Blocked=3 | TD=6<br>
+  Last Updated: 2026-06-07
+</div>
+
+<!-- SCORING REFERENCE -->
+<details>
+  <summary>📋 IDP SCORING REFERENCE</summary>
+  <div class="section-content">
+    <div class="scoring-grid">
+      <div class="scoring-item"><div class="scoring-cat">Sack</div><div class="scoring-val">4 pts</div></div>
+      <div class="scoring-item"><div class="scoring-cat">Solo Tackle</div><div class="scoring-val">1.5 pts</div></div>
+      <div class="scoring-item"><div class="scoring-cat">Assisted Tackle</div><div class="scoring-val">1 pt</div></div>
+      <div class="scoring-item"><div class="scoring-cat">TFL</div><div class="scoring-val">2 pts</div></div>
+      <div class="scoring-item"><div class="scoring-cat">Interception</div><div class="scoring-val">4 pts</div></div>
+      <div class="scoring-item"><div class="scoring-cat">Forced Fumble</div><div class="scoring-val">3 pts</div></div>
+      <div class="scoring-item"><div class="scoring-cat">Pass Deflection</div><div class="scoring-val">2 pts</div></div>
+      <div class="scoring-item"><div class="scoring-cat">Hit on QB</div><div class="scoring-val">1 pt</div></div>
+      <div class="scoring-item"><div class="scoring-cat">2+ Sack Bonus</div><div class="scoring-val">2 pts</div></div>
+      <div class="scoring-item"><div class="scoring-cat">Safety</div><div class="scoring-val">3 pts</div></div>
+      <div class="scoring-item"><div class="scoring-cat">Blocked Kick</div><div class="scoring-val">3 pts</div></div>
+      <div class="scoring-item"><div class="scoring-cat">Defensive TD</div><div class="scoring-val">6 pts</div></div>
+    </div>
+    <div style="margin-top:10px; font-size:0.78rem; color:#8899aa;">
+      <strong style="color:#ff9f43;">EDGE formula:</strong> (Sacks×4) + (Solo×1.5) + (INT×4) + (TFL×2) + (HitQB×1) + (FF×3) + (PD×2) + multi_sack_bonus ÷ 17 games<br>
+      <strong style="color:#ff9f43;">Elite threshold:</strong> 20+ FPPG | <strong style="color:#ff9f43;">Solid:</strong> 14-19 FPPG | <strong style="color:#ff9f43;">Stash:</strong> &lt;14 FPPG + age &lt;24
+    </div>
+  </div>
+</details>
+
+<!-- QB TIER BOARD -->
+<details open>
+  <summary>🎯 QB TIER BOARD (Superflex)</summary>
+  <div class="section-content">
+
+    <div class="tier-label tier-1">TIER 1 — UNTOUCHABLE</div>
+    <div class="player-row">
+      <div><span class="player-name gem">Josh Allen</span> <span class="player-age">Age 30</span><br><span class="player-meta">QB · BUF · Win Total 10.5</span></div>
+      <span class="badge badge-boost">BOOST</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name gem">Drake Maye</span> <span class="player-age">Age 23</span><br><span class="player-meta">QB · NE · Win Total 9.5</span></div>
+      <span class="badge badge-gem">DYNASTY ANCHOR</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name gem">Jayden Daniels</span> <span class="player-age">Age 26</span><br><span class="player-meta">QB · WAS · Win Total 7.5</span></div>
+      <span class="badge badge-gem">ELITE</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name gem">Lamar Jackson</span> <span class="player-age">Age 29</span><br><span class="player-meta">QB · BAL · Win Total 11.5</span></div>
+      <span class="badge badge-boost">11.5 WINS</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name gem">Joe Burrow</span> <span class="player-age">Age 29</span><br><span class="player-meta">QB · CIN · Win Total 10.5</span></div>
+      <span class="badge badge-boost">BOOST</span>
+    </div>
+
+    <div class="tier-label tier-2">TIER 2 — ELITE SF STARTERS</div>
+    <div class="player-row">
+      <div><span class="player-name boost">Caleb Williams</span> <span class="player-age">Age 24</span><br><span class="player-meta">QB · CHI · Win Total 9.5</span></div>
+      <span class="badge badge-gem">YOUTH UPSIDE</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name boost">Patrick Mahomes</span> <span class="player-age">Age 30</span><br><span class="player-meta">QB · KC · Win Total 10.5</span></div>
+      <span class="badge badge-boost">BOOST</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name boost">Jalen Hurts</span> <span class="player-age">Age 27</span><br><span class="player-meta">QB · PHI · Win Total 10.5</span></div>
+      <span class="badge badge-boost">BOOST</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name boost">Justin Herbert</span> <span class="player-age">Age 28</span><br><span class="player-meta">QB · LAC · Win Total 10.5</span></div>
+      <span class="badge badge-boost">BOOST</span>
+    </div>
+
+    <div class="tier-label tier-3">TIER 3 — SOLID SF PLAYS</div>
+    <div class="player-row">
+      <div><span class="player-name warn">Trevor Lawrence</span> <span class="player-age">Age 26</span><br><span class="player-meta">QB · JAC · Win Total 8.5</span></div>
+      <span class="badge badge-gem">NEUTRAL</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name warn">Brock Purdy</span> <span class="player-age">Age 26</span><br><span class="player-meta">QB · SF · Win Total 10.5</span></div>
+      <span class="badge badge-boost">BOOST</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name warn">Jordan Love</span> <span class="player-age">Age 27</span><br><span class="player-meta">QB · GB · Win Total 10.5</span></div>
+      <span class="badge badge-boost">BOOST</span>
+    </div>
+
+    <div class="tier-label tier-4">TIER 4 — DYNASTY STASHES (SF VALUE)</div>
+    <div class="player-row">
+      <div><span class="player-name idp">Shedeur Sanders</span> <span class="player-age">Age 24</span><br><span class="player-meta">QB · CLE · Win Total 5.5</span></div>
+      <span class="badge badge-fade">FADE TEAM</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Jaxson Dart</span> <span class="player-age">Age 23</span><br><span class="player-meta">QB · NYG · Win Total 7.5</span></div>
+      <span class="badge badge-gem">AGE STASH</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Anthony Richardson</span> <span class="player-age">Age 23</span><br><span class="player-meta">QB · IND · Win Total 7.5</span></div>
+      <span class="badge badge-gem">UPSIDE STASH</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Bo Nix</span> <span class="player-age">Age 25</span><br><span class="player-meta">QB · DEN · Win Total 9.5</span></div>
+      <span class="badge badge-gem">VALUE</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name neutral">Sam Darnold</span> <span class="player-age">Age 28</span><br><span class="player-meta">QB · MIN · Win Total 8.5</span></div>
+      <span class="badge" style="background:#1a1a1a;color:#8899aa;border:1px solid #333;">BRIDGE</span>
+    </div>
+  </div>
+</details>
+
+<!-- TE PREMIUM TARGETS -->
+<details open>
+  <summary>🎯 TE PREMIUM TARGETS (+0.5/catch)</summary>
+  <div class="section-content">
+    <div style="background:#1a0a2a;border:1px solid #6633aa;border-radius:4px;padding:8px;margin-bottom:10px;font-size:0.78rem;color:#cc88ff;">
+      ⚡ TE PREMIUM FORMAT: Add 0.5 pts per catch. Elevates elite TEs 1-2 full rounds above standard formats. Target Bowers in R1, McBride in R4, LaPorta in R4.
+    </div>
+
+    <div class="player-row" style="border-left:3px solid #cc88ff;">
+      <div>
+        <span class="player-name" style="color:#cc88ff;">Brock Bowers</span> <span class="player-age">Age 22</span>
+        <span class="badge badge-te" style="margin-left:6px;">TE PREMIUM MONSTER</span><br>
+        <span class="player-meta">TE · LVR · Consensus ~35 → MY RANK 9 → TARGET R1</span>
+        <div class="player-note">100+ target pace. Age 22. TE premium makes him a top-10 asset. The single biggest value gap in the draft. +26 rank improvement.</div>
+      </div>
+    </div>
+
+    <div class="player-row" style="border-left:3px solid #cc88ff;">
+      <div>
+        <span class="player-name" style="color:#cc88ff;">Trey McBride</span> <span class="player-age">Age 26</span>
+        <span class="badge badge-te" style="margin-left:6px;">TE PREMIUM</span><br>
+        <span class="player-meta">TE · ARI · Consensus ~50 → MY RANK 34 → TARGET R4</span>
+        <div class="player-note">100+ target pace. ARI 3.5 wins is a FADE context but McBride's volume is real. Target share survives even in garbage time.</div>
+      </div>
+    </div>
+
+    <div class="player-row" style="border-left:3px solid #cc88ff;">
+      <div>
+        <span class="player-name" style="color:#cc88ff;">Sam LaPorta</span> <span class="player-age">Age 25</span>
+        <span class="badge badge-te" style="margin-left:6px;">TE PREMIUM</span><br>
+        <span class="player-meta">TE · DET · Consensus ~55 → MY RANK 36 → TARGET R4</span>
+        <div class="player-note">DET 10.5 wins BOOST. High-octane offense, LaPorta is the TE1 in one of the NFL's best passing attacks. Premium situation.</div>
+      </div>
+    </div>
+
+    <div class="player-row" style="border-left:3px solid #aa6655;">
+      <div>
+        <span class="player-name" style="color:#cc8866;">Kyle Pitts</span> <span class="player-age">Age 25</span>
+        <span class="badge badge-fade" style="margin-left:6px;">ATL FADE</span><br>
+        <span class="player-meta">TE · ATL · Consensus ~60 → MY RANK 52 → DOWNGRADE</span>
+        <div class="player-note">Elite talent but ATL 6.5 win total destroys team context. Pitts is a Round 6 value at best. Talent exists — team context kills it.</div>
+      </div>
+    </div>
+
+    <div class="player-row" style="border-left:3px solid #cc88ff;">
+      <div>
+        <span class="player-name" style="color:#cc88ff;">Isaiah Likely</span> <span class="player-age">Age 25</span>
+        <span class="badge badge-boost" style="margin-left:6px;">BAL 11.5</span><br>
+        <span class="player-meta">TE · BAL · MY RANK ~69 → VALUE TARGET R7-8</span>
+        <div class="player-note">BAL 11.5 wins — best win total in NFL. TE in a high-scoring offense with TE premium scoring. Undervalued sleeper.</div>
+      </div>
+    </div>
+  </div>
+</details>
+
+<!-- IDP TIER BOARD -->
+<details>
+  <summary>🛡️ IDP TIER BOARD (FPPG Projections)</summary>
+  <div class="section-content">
+    <div style="background:#2a1a00;border:1px solid #664400;border-radius:4px;padding:8px;margin-bottom:10px;font-size:0.78rem;color:#ff9f43;">
+      ⚡ IDP FORMAT: Sack=4 pts is premium. Elite EDGEs score 18-22 FPPG. Tackle-volume LBs score 16-20 FPPG. Elite DBs score 14-18 FPPG. Draft EDGEs in R3-4, LBs in R4-6, DBs in R6-8.
+    </div>
+
+    <div class="tier-label" style="background:#1a0a00;color:#ff9f43;border:1px solid #ff9f43;">ELITE — 20+ FPPG</div>
+
+    <div class="player-row">
+      <div>
+        <span class="player-name idp">Abdul Carter</span> <span class="player-age">Age 23</span> <span class="badge badge-gem">ROOKIE</span><br>
+        <span class="player-meta">EDGE · PHI · PHI 10.5 wins BOOST</span>
+      </div>
+      <span class="fppg-bar">22.1 FPPG</span>
+    </div>
+    <div class="player-note" style="padding:0 6px 8px;">Proj: 12 sacks, 45 solo, 2 INT, 8 TFL. Target R3. Consensus ~80 overall — biggest IDP steal in startup.</div>
+
+    <div class="player-row">
+      <div>
+        <span class="player-name idp">Aidan Hutchinson</span> <span class="player-age">Age 26</span> <span class="badge badge-boost">DET 10.5</span><br>
+        <span class="player-meta">EDGE · DET</span>
+      </div>
+      <span class="fppg-bar">22.4 FPPG</span>
+    </div>
+    <div class="player-note" style="padding:0 6px 8px;">Proj: 14 sacks, 55 solo, 1 INT, 10 TFL. Target R3. Consensus ~85 overall — elite IDP being passed over.</div>
+
+    <div class="player-row">
+      <div>
+        <span class="player-name idp">Will Anderson</span> <span class="player-age">Age 25</span> <span class="badge badge-gem">GEM</span><br>
+        <span class="player-meta">EDGE · HOU · HOU 9.5 wins</span>
+      </div>
+      <span class="fppg-bar">21.3 FPPG</span>
+    </div>
+    <div class="player-note" style="padding:0 6px 8px;">Proj: 13 sacks, 50 solo, 1 INT, 8 TFL. Target R4. Consensus ~90 overall.</div>
+
+    <div class="player-row">
+      <div>
+        <span class="player-name idp">Myles Garrett</span> <span class="player-age">Age 30</span> <span class="badge badge-fade">CLE 5.5 FADE</span><br>
+        <span class="player-meta">EDGE · CLE</span>
+      </div>
+      <span class="fppg-bar">21.0 FPPG</span>
+    </div>
+    <div class="player-note" style="padding:0 6px 8px;">Proj: 16 sacks — elite numbers but AGE 30 + CLE 5.5 wins = dynasty fade. Near-term value only. Target R6.</div>
+
+    <div class="player-row">
+      <div>
+        <span class="player-name idp">Jack Campbell</span> <span class="player-age">Age 26</span> <span class="badge badge-boost">DET 10.5</span><br>
+        <span class="player-meta">LB · DET</span>
+      </div>
+      <span class="fppg-bar">20.2 FPPG</span>
+    </div>
+    <div class="player-note" style="padding:0 6px 8px;">Proj: 90 solo, 2 sacks, 3 INT, 12 TFL. TACKLE MONSTER. Target R4. Consensus ~100 overall — steal.</div>
+
+    <div class="player-row">
+      <div>
+        <span class="player-name idp">Micah Parsons</span> <span class="player-age">Age 27</span> <span class="badge badge-acl">ACL RISK</span><br>
+        <span class="player-meta">EDGE · DAL · DAL 9.5 wins</span>
+      </div>
+      <span class="fppg-bar">20.0 FPPG*</span>
+    </div>
+    <div class="player-note" style="padding:0 6px 8px;">*When healthy. ACL injury — availability uncertain. Draft only if price reflects risk. Target R4 with caution.</div>
+
+    <div class="player-row">
+      <div>
+        <span class="player-name idp">Jared Verse</span> <span class="player-age">Age 24</span> <span class="badge badge-boost">LAR 11.5</span><br>
+        <span class="player-meta">EDGE · LAR</span>
+      </div>
+      <span class="fppg-bar">19.3 FPPG</span>
+    </div>
+    <div class="player-note" style="padding:0 6px 8px;">Proj: 11 sacks, 48 solo, 1 INT, 7 TFL. Age 24 — elite dynasty window. Target R4. Consensus ~95 overall.</div>
+
+    <div class="player-row">
+      <div>
+        <span class="player-name idp">Carson Schwesinger</span> <span class="player-age">Age 25</span> <span class="badge badge-gem">GEM</span><br>
+        <span class="player-meta">LB · TEN · TEN 6.5 wins</span>
+      </div>
+      <span class="fppg-bar">19.1 FPPG</span>
+    </div>
+    <div class="player-note" style="padding:0 6px 8px;">Proj: 85 solo, 2 sacks, 2 INT, 10 TFL. Top-5 IDP scorer falling because LB + bad team. Age 25. Target R5.</div>
+
+    <div class="tier-label" style="background:#0a1a00;color:#88cc88;border:1px solid #88cc88;margin-top:8px;">SOLID — 14-19 FPPG</div>
+
+    <div class="player-row">
+      <div><span class="player-name idp">Zack Baun</span> <span class="player-age">Age 27</span> <span class="badge badge-boost">PHI 10.5</span><br><span class="player-meta">LB · PHI</span></div>
+      <span class="fppg-bar">18.4 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Derwin James</span> <span class="player-age">Age 29</span> <span class="badge badge-boost">LAC 10.5</span><br><span class="player-meta">DB · LAC</span></div>
+      <span class="fppg-bar">18.2 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Nik Bonitto</span> <span class="player-age">Age 25</span><br><span class="player-meta">EDGE · DEN · DEN 9.5 wins</span></div>
+      <span class="fppg-bar">17.1 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Kyle Hamilton</span> <span class="player-age">Age 25</span> <span class="badge badge-boost">BAL 11.5</span><br><span class="player-meta">DB · BAL</span></div>
+      <span class="fppg-bar">17.0 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Fred Warner</span> <span class="player-age">Age 29</span> <span class="badge badge-boost">SF 10.5</span><br><span class="player-meta">LB · SF</span></div>
+      <span class="fppg-bar">16.4 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Quay Walker</span> <span class="player-age">Age 26</span> <span class="badge badge-boost">GB 10.5</span><br><span class="player-meta">LB · GB</span></div>
+      <span class="fppg-bar">16.2 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">T.J. Watt</span> <span class="player-age">Age 30</span><br><span class="player-meta">EDGE · PIT · Age concern</span></div>
+      <span class="fppg-bar">16.0 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Xavier McKinney</span> <span class="player-age">Age 26</span> <span class="badge badge-boost">GB 10.5</span><br><span class="player-meta">DB · GB</span></div>
+      <span class="fppg-bar">15.1 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Roquan Smith</span> <span class="player-age">Age 28</span> <span class="badge badge-boost">BAL 11.5</span><br><span class="player-meta">LB · BAL</span></div>
+      <span class="fppg-bar">14.9 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Rashan Gary</span> <span class="player-age">Age 28</span> <span class="badge badge-boost">GB 10.5</span><br><span class="player-meta">EDGE · GB</span></div>
+      <span class="fppg-bar">15.4 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Josh Sweat</span> <span class="player-age">Age 28</span> <span class="badge badge-boost">PHI 10.5</span><br><span class="player-meta">EDGE · PHI</span></div>
+      <span class="fppg-bar">14.8 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Brian Burns</span> <span class="player-age">Age 27</span><br><span class="player-meta">EDGE · NYG · NYG 7.5 wins</span></div>
+      <span class="fppg-bar">14.6 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Minkah Fitzpatrick</span> <span class="player-age">Age 28</span><br><span class="player-meta">DB · PIT · PIT 8.5 wins</span></div>
+      <span class="fppg-bar">14.5 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Travon Walker</span> <span class="player-age">Age 25</span><br><span class="player-meta">EDGE · JAC · Upside play</span></div>
+      <span class="fppg-bar">14.2 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name idp">Patrick Queen</span> <span class="player-age">Age 27</span><br><span class="player-meta">LB · PIT</span></div>
+      <span class="fppg-bar">14.3 FPPG</span>
+    </div>
+
+    <div class="tier-label" style="background:#00161a;color:#55aacc;border:1px solid #55aacc;margin-top:8px;">STASH — &lt;14 FPPG + Age &lt;24 (DYNASTY UPSIDE)</div>
+
+    <div class="player-row">
+      <div><span class="player-name" style="color:#55aacc;">Chop Robinson</span> <span class="player-age">Age 23</span> <span class="badge badge-gem">STASH GEM</span><br><span class="player-meta">EDGE · MIA · MIA 4.5 wins FADE context</span></div>
+      <span class="fppg-bar" style="color:#55aacc;">12.1 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name" style="color:#55aacc;">Laiatu Latu</span> <span class="player-age">Age 24</span> <span class="badge badge-boost">LAC 10.5</span><br><span class="player-meta">EDGE · LAC</span></div>
+      <span class="fppg-bar" style="color:#55aacc;">12.3 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name" style="color:#55aacc;">Dallas Turner</span> <span class="player-age">Age 23</span><br><span class="player-meta">EDGE · MIN · MIN 8.5 wins</span></div>
+      <span class="fppg-bar" style="color:#55aacc;">11.5 FPPG</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name" style="color:#55aacc;">Bralen Trice</span> <span class="player-age">Age 23</span> <span class="badge badge-boost">SEA 10.5</span><br><span class="player-meta">EDGE · SEA</span></div>
+      <span class="fppg-bar" style="color:#55aacc;">11.2 FPPG</span>
+    </div>
+
+    <div class="tier-label" style="background:#1a0505;color:#ff6b6b;border:1px solid #ff6b6b;margin-top:8px;">BUST — AVOID IN DYNASTY</div>
+
+    <div class="player-row">
+      <div><span class="player-name bust">Bobby Wagner</span> <span class="player-age">Age 35</span><br><span class="player-meta">LB · SEA — DO NOT DRAFT</span></div>
+      <span class="badge badge-bust">BUST</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name bust">Isaiah Simmons</span> <span class="player-age">Age 27</span><br><span class="player-meta">DB · ARI — ARI 3.5 wins + scheme bust</span></div>
+      <span class="badge badge-bust">BUST</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name bust">Kevin Byard</span> <span class="player-age">Age 32</span><br><span class="player-meta">DB · TEN — Age bust</span></div>
+      <span class="badge badge-bust">BUST</span>
+    </div>
+    <div class="player-row">
+      <div><span class="player-name bust">Haason Reddick</span> <span class="player-age">Age 31</span><br><span class="player-meta">EDGE · FA — Age 31 + unsigned</span></div>
+      <span class="badge badge-bust">BUST</span>
+    </div>
+  </div>
+</details>
+
+<!-- ROUND BY ROUND -->
+<details>
+  <summary>📊 ROUND-BY-ROUND GUIDE (R1-R10)</summary>
+  <div class="section-content">
+
+    <!-- R1 -->
+    <div class="round-header">
+      <div><strong style="color:#00d4ff;">ROUND 1</strong></div>
+      <div class="range">Picks 1–10 | QB run expected</div>
+    </div>
+
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Brock Bowers, TE, LVR, Age 22</strong>
+      <p>Consensus ~35th. TE premium + 100+ target pace at age 22 = top-10 asset. Reach for him here — he won't last past pick 12 in IDP-TE premium leagues. The single biggest value gap in this draft.</p>
+    </div>
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Abdul Carter, EDGE, PHI, Age 23</strong>
+      <p>Consensus ~80 overall. Projects 22 FPPG in this format. PHI 10.5 wins elite situation. Draft him in your top-3 picks if Bowers is gone — IDP leagues make him a top-28 pick.</p>
+    </div>
+    <div class="bust-block">
+      <div class="label">BUST</div>
+      <strong class="bust">Bijan Robinson, RB, ATL, Age 24</strong>
+      <p>ATL win total only 6.5. Losing game scripts kill RB volume. Consensus pick 7 — let your opponent reach. Target in Round 2 at best.</p>
+    </div>
+    <div class="positional-note">
+      <strong>POSITIONAL NOTE:</strong> In Superflex, Rounds 1-2 should be 60%+ QBs. If Allen/Maye/Daniels/Jackson/Burrow are gone, pivot hard to Brock Bowers as the best remaining value.
+    </div>
+
+    <!-- R2 -->
+    <div class="round-header" style="margin-top:16px;">
+      <div><strong style="color:#00d4ff;">ROUND 2</strong></div>
+      <div class="range">Picks 11–20 | IDP gold zone</div>
+    </div>
+
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Aidan Hutchinson, EDGE, DET, Age 26</strong>
+      <p>Consensus ~85 overall. Projects 22.4 FPPG: 14 sacks × 4 pts = 56pts + 55 solo × 1.5 = 82.5pts per 17 games. DET 10.5 wins. Biggest IDP steal in the entire draft.</p>
+    </div>
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Will Anderson, EDGE, HOU, Age 25</strong>
+      <p>Consensus ~90. Projects 21.3 FPPG. HOU 9.5 wins. Age 25 EDGE at prime sack production age. Grab him if Hutchinson is gone.</p>
+    </div>
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Trey McBride, TE, ARI, Age 26</strong>
+      <p>Consensus ~50. 100+ target pace. TE premium format rewards him 1-2 rounds early. ARI 3.5 wins is bad context but target volume is real.</p>
+    </div>
+    <div class="bust-block">
+      <div class="label">BUST</div>
+      <strong class="bust">Jonathan Taylor, RB, IND, Age 26</strong>
+      <p>Injury history + age 26 RB on dynasty curve + IND 7.5 win total. Consensus 22 is at least 10 spots too high. Target in Round 4.</p>
+    </div>
+
+    <!-- R3 -->
+    <div class="round-header" style="margin-top:16px;">
+      <div><strong style="color:#00d4ff;">ROUND 3</strong></div>
+      <div class="range">Picks 21–30 | Young WRs + IDP EDGE</div>
+    </div>
+
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Jared Verse, EDGE, LAR, Age 24</strong>
+      <p>Consensus ~95. Projects 19.3 FPPG. LAR 11.5 wins BOOST. Age 24 means 6+ years of elite IDP production. Young EDGE monsters are worth reaching 2 rounds for in this format.</p>
+    </div>
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Sam LaPorta, TE, DET, Age 25</strong>
+      <p>Consensus ~55. TE premium format. DET 10.5 wins high-octane offense. LaPorta is the TE1 in one of the best passing attacks. Target Round 3-4.</p>
+    </div>
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Luther Burden, WR, CHI, Age 22</strong>
+      <p>Consensus ~55. Age 22 WR with the Caleb Williams connection in CHI's 9.5-win offense. The youngest dynasty runway in the WR pool — buy the age.</p>
+    </div>
+    <div class="bust-block">
+      <div class="label">BUST</div>
+      <strong class="bust">Jeremiyah Love, RB, ARI, Age 22</strong>
+      <p>ARI 3.5 WIN TOTAL is the worst projected record in the NFL. Volume RB in garbage time is not dynasty value. Consensus 13 is 9 spots too high.</p>
+    </div>
+
+    <!-- R4 -->
+    <div class="round-header" style="margin-top:16px;">
+      <div><strong style="color:#00d4ff;">ROUND 4</strong></div>
+      <div class="range">Picks 31–40 | IDP LB gold + WR youth</div>
+    </div>
+
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Jack Campbell, LB, DET, Age 26</strong>
+      <p>Consensus ~100. Projects 20.2 FPPG: 90 solo × 1.5 = 135pts + 12 TFL × 2 = 24pts per 17 games. TACKLE MONSTER in DET's 10.5-win defense. Best LB value in the draft.</p>
+    </div>
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Carson Schwesinger, LB, TEN, Age 25</strong>
+      <p>Consensus ~105. Projects 19.1 FPPG. TEN 6.5 wins is a fade but his tackle+INT volume is real. Age 25 LB with massive IDP upside — falling due to LB stigma.</p>
+    </div>
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Travis Hunter, WR, JAC, Age 23</strong>
+      <p>Consensus ~45. Two-way talent with elite athleticism. As WR1 with Lawrence throwing, he has genuine WR1 ceiling. Age 23 in JAC's 8.5-win offense.</p>
+    </div>
+    <div class="bust-block">
+      <div class="label">BUST / FLAG</div>
+      <strong class="bust">Micah Parsons, EDGE, DAL, Age 27 ⚠️ ACL</strong>
+      <p>ACL injury creates massive availability uncertainty. His 20 FPPG projection means nothing if he misses the season. Downgrade 4-5 spots from consensus until cleared.</p>
+    </div>
+
+    <!-- R5 -->
+    <div class="round-header" style="margin-top:16px;">
+      <div><strong style="color:#00d4ff;">ROUND 5</strong></div>
+      <div class="range">Picks 41–50 | QB2 Superflex stashes</div>
+    </div>
+
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Shedeur Sanders, QB, CLE, Age 24</strong>
+      <p>Consensus ~60. Starting QB at age 24 in Superflex is worth reaching 1-2 rounds. CLE 5.5 wins is FADE context but dynasty value is the age, not the record.</p>
+    </div>
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">Jaxson Dart, QB, NYG, Age 23</strong>
+      <p>Consensus ~70. The youngest confirmed starting QB in this class. In Superflex, a 23-year-old Week 1 starter is worth Round 5 pricing. Dynasty upside is enormous.</p>
+    </div>
+    <div class="gem-block">
+      <div class="label">GEM</div>
+      <strong class="gem">TreVeyon Henderson, RB, NE, Age 23</strong>
+      <p>Consensus ~65. Age 23 RB — the sweet spot of the age curve. NE 9.5 wins improving offense. Buy the youth premium here before consensus catches up.</p>
+    </div>
+    <div class="bust-block">
+      <div class="label">BUST</div>
+      <strong class="bust">De'Von Achane, RB, MIA, Age 23</strong>
+      <p>MIA 4.5 WIN TOTAL FADE. Trailing game scripts eliminate carry volume for explosive RBs. Elite talent trapped — consensus 40 is 8+ spots too high. Wait until R5-6.</p>
+    </div>
+
+    <!-- R6-8 -->
+    <div class="round-header" style="margin-top:16px;">
+      <div><strong style="color:#00d4ff;">ROUNDS 6-8</strong></div>
+      <div class="range">Picks 51–80 | IDP depth + EDGE stashes</div>
+    </div>
+
+    <div class="gem-block">
+      <div class="label">GEMS R6-R8</div>
+      <strong class="gem">Nik Bonitto EDGE DEN Age 25</strong> — 17 FPPG. DEN 9.5 wins. Target R6.<br>
+      <strong class="gem">Kyle Hamilton DB BAL Age 25</strong> — 17 FPPG. BAL 11.5 wins BOOST. Target R6.<br>
+      <strong class="gem">Zack Baun LB PHI Age 27</strong> — 18.4 FPPG. PHI 10.5 wins BOOST. Target R6.<br>
+      <strong class="gem">Chop Robinson EDGE MIA Age 23</strong> — 12 FPPG stash. Age upside. Target R8.<br>
+      <strong class="gem">Laiatu Latu EDGE LAC Age 24</strong> — 12.3 FPPG stash. LAC 10.5 BOOST. Target R8.<br>
+      <strong class="gem">Xavier Worthy WR KC Age 23</strong> — Mahomes + KC 10.5 wins. Target R8.
+    </div>
+    <div class="bust-block">
+      <div class="label">ONGOING BUSTS</div>
+      <strong class="bust">Cooper Kupp WR LAR Age 32</strong> — dynasty bust despite LAR 11.5 wins.<br>
+      <strong class="bust">Bobby Wagner LB SEA Age 35</strong> — never draft in any format.<br>
+      <strong class="bust">Trey Hendrickson EDGE CIN Age 31</strong> — rental not an asset. Skip.
+    </div>
+
+    <!-- R9-10 -->
+    <div class="round-header" style="margin-top:16px;">
+      <div><strong style="color:#00d4ff;">ROUNDS 9-10</strong></div>
+      <div class="range">Picks 81–100 | Stash + developmental</div>
+    </div>
+
+    <div class="gem-block">
+      <div class="label">GEMS R9-R10</div>
+      <strong class="gem">Dallas Turner EDGE MIN Age 23</strong> — 11.5 FPPG stash. Age 23 dynasty upside.<br>
+      <strong class="gem">Bralen Trice EDGE SEA Age 23</strong> — 11.2 FPPG. SEA 10.5 wins BOOST.<br>
+      <strong class="gem">Anthony Richardson QB IND Age 23</strong> — Age 23 QB. SF value if healthy.<br>
+      <strong class="gem">Jordyn Brooks LB SEA Age 27</strong> — SEA 10.5 BOOST. Reliable IDP depth.<br>
+      <strong class="gem">Talanoa Hufanga DB SF Age 26</strong> — SF 10.5 BOOST. 13.6 FPPG DB.
+    </div>
+    <div class="bust-block">
+      <div class="label">ROUND 10 BUSTS</div>
+      <strong class="bust">Aaron Jones RB MIN Age 31</strong> — dynasty bust. Never draft.<br>
+      <strong class="bust">Alvin Kamara RB NO Age 31</strong> — dynasty bust. Never draft.<br>
+      <strong class="bust">Davante Adams WR FA Age 33</strong> — dynasty bust. Never draft.
+    </div>
+
+  </div>
+</details>
+
+<!-- VEGAS FLAGS -->
+<details>
+  <summary>🎰 VEGAS WIN TOTAL FLAGS</summary>
+  <div class="section-content">
+
+    <div style="margin-bottom:10px;">
+      <div style="font-size:0.75rem;color:#8899aa;margin-bottom:6px;">
+        BOOST = Win Total ≥10.5 (high-volume offense/defense) | FADE = Win Total ≤6.5 (game script kills volume)
+      </div>
+    </div>
+
+    <div style="margin-bottom:8px;font-size:0.8rem;font-weight:bold;color:#00d4ff;">▶ BOOST TEAMS (Win Total 10.5+)</div>
+    <div class="vegas-grid">
+      <div class="vegas-item vegas-boost">
+        <div class="vegas-player boost-label">BAL 11.5 ⭐</div>
+        <div class="vegas-team-ou boost-label">HIGHEST WIN TOTAL</div>
+        <div style="font-size:0.68rem;color:#aaccee;">Jackson, Flowers, Hamilton, Likely, R.Smith</div>
+      </div>
+      <div class="vegas-item vegas-boost">
+        <div class="vegas-player boost-label">LAR 11.5 ⭐</div>
+        <div class="vegas-team-ou boost-label">HIGHEST WIN TOTAL</div>
+        <div style="font-size:0.68rem;color:#aaccee;">Nacua, K.Williams, Verse, Kupp(bust-old)</div>
+      </div>
+      <div class="vegas-item vegas-boost">
+        <div class="vegas-player boost-label">BUF 10.5</div>
+        <div class="vegas-team-ou boost-label">BOOST</div>
+        <div style="font-size:0.68rem;color:#aaccee;">Allen, Coleman, J.Cook, Kincaid</div>
+      </div>
+      <div class="vegas-item vegas-boost">
+        <div class="vegas-player boost-label">DET 10.5</div>
+        <div class="vegas-team-ou boost-label">BOOST</div>
+        <div style="font-size:0.68rem;color:#aaccee;">Gibbs, St.Brown, Hutchinson, Campbell</div>
+      </div>
+      <div class="vegas-item vegas-boost">
+        <div class="vegas-player boost-label">PHI 10.5</div>
+        <div class="vegas-team-ou boost-label">BOOST</div>
+        <div style="font-size:0.68rem;color:#aaccee;">Hurts, A.Carter, Baun, Sweat</div>
+      </div>
+      <div class="vegas-item vegas-boost">
+        <div class="vegas-player boost-label">SF 10.5</div>
+        <div class="vegas-team-ou boost-label">BOOST</div>
+        <div style="font-size:0.68rem;color:#aaccee;">Purdy, Warner, Hufanga</div>
+      </div>
+      <div class="vegas-item vegas-boost">
+        <div class="vegas-player boost-label">KC 10.5</div>
+        <div class="vegas-team-ou boost-label">BOOST</div>
+        <div style="font-size:0.68rem;color:#aaccee;">Mahomes, Pacheco, Rice, Worthy</div>
+      </div>
+      <div class="vegas-item vegas-boost">
+        <div class="vegas-player boost-label">GB 10.5</div>
+        <div class="vegas-team-ou boost-label">BOOST</div>
+        <div style="font-size:0.68rem;color:#aaccee;">Love, Q.Walker, McKinney, Gary</div>
+      </div>
+      <div class="vegas-item vegas-boost">
+        <div class="vegas-player boost-label">SEA 10.5</div>
+        <div class="vegas-team-ou boost-label">BOOST</div>
+        <div style="font-size:0.68rem;color:#aaccee;">JSN, Walker III, Trice, Brooks</div>
+      </div>
+      <div class="vegas-item vegas-boost">
+        <div class="vegas-player boost-label">LAC 10.5</div>
+        <div class="vegas-team-ou boost-label">BOOST</div>
+        <div style="font-size:0.68rem;color:#aaccee;">Herbert, Hampton, Latu, D.James</div>
+      </div>
+      <div class="vegas-item vegas-boost">
+        <div class="vegas-player boost-label">CIN 10.5</div>
+        <div class="vegas-team-ou boost-label">BOOST</div>
+        <div style="font-size:0.68rem;color:#aaccee;">Burrow, Chase, Hendrickson(old)</div>
+      </div>
+    </div>
+
+    <div style="margin:12px 0 8px;font-size:0.8rem;font-weight:bold;color:#ff6b6b;">▶ FADE TEAMS (Win Total ≤6.5)</div>
+    <div class="vegas-grid">
+      <div class="vegas-item vegas-fade">
+        <div class="vegas-player fade-label">ATL 6.5 🚨</div>
+        <div class="vegas-team-ou fade-label">MAJOR BUST</div>
+        <div style="font-size:0.68rem;color:#ffaaaa;">Bijan(BUST!), London(BUST), Pitts(down), Cousins(ancient)</div>
+      </div>
+      <div class="vegas-item vegas-fade">
+        <div class="vegas-player fade-label">LVR 6.5 🚨</div>
+        <div class="vegas-team-ou fade-label">FADE</div>
+        <div style="font-size:0.68rem;color:#ffaaaa;">Jeanty(fade), Crosby(aging), Bowers(TE gem despite team)</div>
+      </div>
+      <div class="vegas-item vegas-fade">
+        <div class="vegas-player fade-label">ARI 3.5 💀</div>
+        <div class="vegas-team-ou fade-label">WORST TEAM NFL</div>
+        <div style="font-size:0.68rem;color:#ffaaaa;">Love(BUST), MHJ(fade), McBride(TE vol OK), Baker(bust)</div>
+      </div>
+      <div class="vegas-item vegas-fade">
+        <div class="vegas-player fade-label">MIA 4.5</div>
+        <div class="vegas-team-ou fade-label">FADE</div>
+        <div style="font-size:0.68rem;color:#ffaaaa;">Achane(BUST), Hill(age+fade), Tua(injury+fade)</div>
+      </div>
+      <div class="vegas-item vegas-fade">
+        <div class="vegas-player fade-label">NYJ 5.5</div>
+        <div class="vegas-team-ou fade-label">FADE</div>
+        <div style="font-size:0.68rem;color:#ffaaaa;">G.Wilson(talent wasted), B.Hall(fade)</div>
+      </div>
+      <div class="vegas-item vegas-fade">
+        <div class="vegas-player fade-label">CLE 5.5</div>
+        <div class="vegas-team-ou fade-label">FADE</div>
+        <div style="font-size:0.68rem;color:#ffaaaa;">Sanders(SF QB OK), Garrett(age+fade), Judkins(stash)</div>
+      </div>
+    </div>
+
+    <div style="margin-top:10px;font-size:0.75rem;color:#8899aa;">
+      <strong style="color:#ffd700;">MIDDLE TIER (7.5-9.5):</strong> CHI 9.5, DAL 9.5, HOU 9.5, DEN 9.5, NE 9.5 — NEUTRAL. JAC 8.5, PIT 8.5, TB 8.5, MIN 8.5 — NEUTRAL. WAS 7.5, NYG 7.5, IND 7.5 — slight concern.
+    </div>
+  </div>
+</details>
+
+<!-- AGE CURVE REFERENCE -->
+<details>
+  <summary>📈 AGE CURVE REFERENCE</summary>
+  <div class="section-content">
+    <div style="font-size:0.8rem;">
+      <div style="background:#0a1220;border:1px solid #1a2a3a;border-radius:4px;padding:10px;margin-bottom:8px;">
+        <strong style="color:#4CAF50;">RB Age Curve:</strong> Peak 21-23 | Fade 24-25 | Decline 26+ | <span class="bust">NEVER draft 30+ RB</span>
+      </div>
+      <div style="background:#0a1220;border:1px solid #1a2a3a;border-radius:4px;padding:10px;margin-bottom:8px;">
+        <strong style="color:#4CAF50;">WR Age Curve:</strong> Peak 21-26 | Sweet spot 22-24 | Fade 28+ | <span class="bust">Avoid 30+ WR</span>
+      </div>
+      <div style="background:#0a1220;border:1px solid #1a2a3a;border-radius:4px;padding:10px;margin-bottom:8px;">
+        <strong style="color:#00d4ff;">QB Age Curve:</strong> Dynasty buy 22-26 | Prime 26-30 | Win-now 30-32 | <span class="bust">Avoid 33+</span>
+      </div>
+      <div style="background:#0a1220;border:1px solid #1a2a3a;border-radius:4px;padding:10px;margin-bottom:8px;">
+        <strong style="color:#ff9f43;">IDP EDGE Curve:</strong> Stash 22-24 | Peak 25-29 | Fade 30+ | <span class="bust">Avoid 32+</span>
+      </div>
+      <div style="background:#0a1220;border:1px solid #1a2a3a;border-radius:4px;padding:10px;">
+        <strong style="color:#ff9f43;">IDP LB/DB Curve:</strong> Buy 24-27 | Prime 26-30 | Decline 30+ | <span class="bust">Avoid 33+</span>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;font-size:0.78rem;color:#8899aa;">
+      <strong style="color:#ffd700;">KEY PHILOSOPHY:</strong> In dynasty, you're drafting future value. An age-22 player with 8 years of peak ahead is worth 2 rounds more than an age-30 player with 2 years remaining — even if they score the same next season.
+    </div>
+  </div>
+</details>
+
+<!-- LIVE DRAFT TRACKER -->
+<details>
+  <summary>📋 LIVE DRAFT TRACKER (100 Picks)</summary>
+  <div class="section-content" style="padding:8px 0;">
+    <div style="font-size:0.72rem;color:#8899aa;padding:0 12px 8px;">Tap cells to fill in draft results in real-time.</div>
+    <div style="overflow-x:auto;">
+      <table id="tracker">
+        <thead>
+          <tr>
+            <th style="width:36px;">Pick</th>
+            <th style="width:36px;">Rnd</th>
+            <th>Player</th>
+            <th style="width:40px;">Pos</th>
+            <th style="width:36px;">Tm</th>
+            <th>Owner</th>
+          </tr>
+        </thead>
+        <tbody id="tracker-body">
+        </tbody>
+      </table>
+    </div>
+  </div>
+</details>
+
+<div style="text-align:center;font-size:0.65rem;color:#334455;margin-top:16px;padding-bottom:20px;">
+  2026 Dynasty SF Draft Cheatsheet · Generated 2026-06-07<br>
+  Data: DraftSharks SF Top 25 · TheIDPShow IDP Rankings · Vegas Win Totals (Confirmed Live)<br>
+  Format: 10-Team Dynasty · Superflex · Full PPR · TE Premium +0.5 · IDP Sack Premium
+</div>
+
+<script>
+  // Build tracker table
+  const tbody = document.getElementById('tracker-body');
+  for (let i = 1; i <= 100; i++) {
+    const round = Math.ceil(i / 10);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i}</td>
+      <td style="color:#8899aa;">R${round}</td>
+      <td><input class="tracker-input" type="text" placeholder="Player name" aria-label="Pick ${i} player"></td>
+      <td><input class="tracker-input" type="text" placeholder="Pos" aria-label="Pick ${i} position" style="width:38px;"></td>
+      <td><input class="tracker-input" type="text" placeholder="Tm" aria-label="Pick ${i} team" style="width:34px;"></td>
+      <td><input class="tracker-input" type="text" placeholder="Owner" aria-label="Pick ${i} owner"></td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  // Highlight rows when filled
+  document.getElementById('tracker').addEventListener('input', function(e) {
+    const row = e.target.closest('tr');
+    const inputs = row.querySelectorAll('input');
+    const filled = Array.from(inputs).some(inp => inp.value.trim() !== '');
+    row.style.borderLeft = filled ? '3px solid #00d4ff' : '';
+  });
+
+  // Auto-save to localStorage
+  const SAVE_KEY = 'dynasty_tracker_2026';
+
+  function saveTracker() {
+    const data = [];
+    const rows = document.querySelectorAll('#tracker-body tr');
+    rows.forEach((row, i) => {
+      const inputs = row.querySelectorAll('input');
+      data.push({
+        player: inputs[0].value,
+        pos: inputs[1].value,
+        team: inputs[2].value,
+        owner: inputs[3].value
+      });
+    });
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadTracker() {
+    try {
+      const data = JSON.parse(localStorage.getItem(SAVE_KEY));
+      if (!data) return;
+      const rows = document.querySelectorAll('#tracker-body tr');
+      rows.forEach((row, i) => {
+        if (data[i]) {
+          const inputs = row.querySelectorAll('input');
+          inputs[0].value = data[i].player || '';
+          inputs[1].value = data[i].pos || '';
+          inputs[2].value = data[i].team || '';
+          inputs[3].value = data[i].owner || '';
+          if (data[i].player) row.style.borderLeft = '3px solid #00d4ff';
+        }
+      });
+    } catch(e) {}
+  }
+
+  document.getElementById('tracker').addEventListener('input', saveTracker);
+  loadTracker();
+
+  // Quick clear button
+  const clearBtn = document.createElement('button');
+  clearBtn.textContent = 'Clear Tracker';
+  clearBtn.style.cssText = 'display:block;margin:8px auto;background:#1a0505;color:#ff6b6b;border:1px solid #ff6b6b;border-radius:4px;padding:10px 20px;font-family:monospace;font-size:0.8rem;cursor:pointer;min-height:44px;';
+  clearBtn.onclick = function() {
+    if (confirm('Clear all draft tracker data?')) {
+      document.querySelectorAll('#tracker-body input').forEach(inp => inp.value = '');
+      document.querySelectorAll('#tracker-body tr').forEach(tr => tr.style.borderLeft = '');
+      try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
+    }
+  };
+  document.querySelector('#tracker').closest('details').querySelector('.section-content').appendChild(clearBtn);
+</script>
+
+</body>
+</html>
