@@ -186,6 +186,7 @@ tr.bust-row{background:rgba(255,107,107,0.06)}
   <div class="tab" onclick="switchTab('sim')">🎲 Sim Draft</div>
   <div class="tab" onclick="switchTab('idp')">🛡 IDP Board</div>
   <div class="tab" onclick="switchTab('vegas')">🎰 Vegas Overlay</div>
+  <div class="tab" onclick="switchTab('vorp')">📉 VORP &amp; Cliffs</div>
   <div class="tab" onclick="switchTab('tracker')">🔴 Live Tracker</div>
 </div>
 
@@ -311,6 +312,74 @@ tr.bust-row{background:rgba(255,107,107,0.06)}
   </div>
 </div>
 
+<!-- ═══════════════════════════ VORP & CLIFFS ════════════════════════════ -->
+<div id="tab-vorp" class="tab-content">
+
+  <!-- S1: Cliff Charts -->
+  <div class="section-label" style="margin-top:0">Positional Cliff Charts</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:20px">
+    <div class="card"><div style="font-size:12px;font-weight:700;color:var(--qb);margin-bottom:8px">QB VORP (2QB Adjusted)</div><canvas id="chart-qb" height="160"></canvas></div>
+    <div class="card"><div style="font-size:12px;font-weight:700;color:#6ee7b7;margin-bottom:8px">RB VORP</div><canvas id="chart-rb" height="160"></canvas></div>
+    <div class="card"><div style="font-size:12px;font-weight:700;color:var(--boost);margin-bottom:8px">WR VORP</div><canvas id="chart-wr" height="160"></canvas></div>
+    <div class="card"><div style="font-size:12px;font-weight:700;color:#c084fc;margin-bottom:8px">TE VORP (TEP Adjusted)</div><canvas id="chart-te" height="160"></canvas></div>
+  </div>
+
+  <!-- S2: VORP Comparison Table -->
+  <div class="section-label">VORP Comparison Table</div>
+  <div class="toolbar">
+    <input class="search-box" id="vorpSearch" placeholder="Search player…" oninput="renderVORPTable()">
+    <button class="filter-btn active" onclick="setVORPFilter('ALL',this)">ALL</button>
+    <button class="filter-btn QB" onclick="setVORPFilter('QB',this)">QB</button>
+    <button class="filter-btn RB" onclick="setVORPFilter('RB',this)">RB</button>
+    <button class="filter-btn WR" onclick="setVORPFilter('WR',this)">WR</button>
+    <button class="filter-btn TE" onclick="setVORPFilter('TE',this)">TE</button>
+  </div>
+  <div class="table-wrap" style="margin-bottom:20px">
+    <table id="vorpTable">
+      <thead><tr>
+        <th onclick="sortVORP('vorp_rank')" data-col="vorp_rank">Pos Rank<span class="sort-arrow">▼</span></th>
+        <th onclick="sortVORP('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
+        <th onclick="sortVORP('pos')" data-col="pos">Pos<span class="sort-arrow">▼</span></th>
+        <th onclick="sortVORP('team')" data-col="team">Team<span class="sort-arrow">▼</span></th>
+        <th onclick="sortVORP('vorp_raw')" data-col="vorp_raw">VORP Raw<span class="sort-arrow">▼</span></th>
+        <th onclick="sortVORP('vorp_adjusted')" data-col="vorp_adjusted">VORP Adj<span class="sort-arrow">▼</span></th>
+        <th onclick="sortVORP('vorp_2qb_adjusted')" data-col="vorp_2qb_adjusted">2QB VORP<span class="sort-arrow">▼</span></th>
+        <th onclick="sortVORP('drop_to_next')" data-col="drop_to_next">→ Next<span class="sort-arrow">▼</span></th>
+        <th>Cliff</th>
+      </tr></thead>
+      <tbody id="vorpBody"></tbody>
+    </table>
+  </div>
+
+  <!-- S3: Insight Cards -->
+  <div class="section-label">Draft Trigger Cards — "Draft Now or Never" Signals</div>
+  <div id="cliffCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:20px"></div>
+
+  <!-- S4: WR Depth Banner -->
+  <div class="section-label">WR Depth Confirmation</div>
+  <div id="wrDepthBanner" style="margin-bottom:12px"></div>
+  <div class="table-wrap" style="margin-bottom:20px">
+    <table id="wrDepthTable">
+      <thead><tr><th>WR Rank</th><th>Player</th><th>Team</th><th>VORP</th><th>Drop to Next</th></tr></thead>
+      <tbody id="wrDepthBody"></tbody>
+    </table>
+  </div>
+
+  <!-- S5: Strategy Validator -->
+  <div class="section-label">My Draft Strategy VORP Validator</div>
+  <div class="card">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+      Enter your expected draft strategy by round. Format: <code>QB WR RB TE RB WR IDP IDP QB WR</code> (one position per round, space-separated)
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <input class="search-box" id="stratInput" placeholder="QB WR RB TE RB WR IDP IDP QB WR" style="flex:1;min-width:220px">
+      <button class="sim-btn" onclick="validateStrategy()" style="min-width:120px">⚡ Validate</button>
+    </div>
+    <div id="stratResult"></div>
+  </div>
+
+</div>
+
 <!-- ═══════════════════════════ LIVE TRACKER ═══════════════════════════ -->
 <div id="tab-tracker" class="tab-content">
   <div id="alertContainer"></div>
@@ -394,11 +463,16 @@ async function loadCSV(path) {
   } catch(e) { return []; }
 }
 
+let vorpData = [];
+let vorpSort = {col:'vorp_raw', dir:-1};
+let vorpPosFilter = 'ALL';
+
 async function init() {
-  [boardData, idpData, vegasData] = await Promise.all([
+  [boardData, idpData, vegasData, vorpData] = await Promise.all([
     loadCSV('draft_board.csv'),
     loadCSV('idp_model.csv'),
-    loadCSV('vegas_overlay.csv')
+    loadCSV('vegas_overlay.csv'),
+    loadCSV('vorp_data.csv')
   ]);
   // Coerce numbers
   boardData.forEach(p => {
@@ -410,6 +484,10 @@ async function init() {
     p.bust_flag = +p.bust_flag || 0;
     p.adp_round = +p.adp_round || 10;
     p.target_round = +p.target_round || 10;
+    p.vorp_raw = +p.vorp_raw || 0;
+    p.vorp_adjusted = +p.vorp_adjusted || 0;
+    p.vorp_2qb_adjusted = p.vorp_2qb_adjusted !== '' ? +p.vorp_2qb_adjusted : null;
+    p.positional_drop = +p.positional_drop || 0;
   });
   idpData.forEach(p => {
     p.proj_fppg = +p.proj_fppg || 0;
@@ -419,14 +497,347 @@ async function init() {
     p.proj_tfl = +p.proj_tfl || 0;
     p.age = +p.age || 0;
   });
-  vegasData.forEach(p => {
-    p.win_total = +p.win_total || 0;
+  vegasData.forEach(p => { p.win_total = +p.win_total || 0; });
+  vorpData.forEach(p => {
+    p.vorp_rank = +p.vorp_rank || 99;
+    p.vorp_raw = +p.vorp_raw || 0;
+    p.vorp_adjusted = +p.vorp_adjusted || 0;
+    p.vorp_2qb_adjusted = p.vorp_2qb_adjusted !== '' ? +p.vorp_2qb_adjusted : null;
+    p.te_premium_pts = p.te_premium_pts !== '' ? +p.te_premium_pts : 0;
+    p.drop_to_next = +p.drop_to_next || 0;
+    p.drop_pct = +p.drop_pct || 0;
   });
   renderBoard();
   renderIDP();
   renderVegas();
   buildVegasTeamCards();
   initTracker();
+  renderVORPTab();
+}
+
+// ═══════════════════════════════════════════════════════════
+// VORP TAB
+// ═══════════════════════════════════════════════════════════
+function renderVORPTab() {
+  if (!vorpData.length) return;
+  drawCliffCharts();
+  renderVORPTable();
+  renderCliffCards();
+  renderWRDepth();
+}
+
+// ─── Cliff Bar Charts ───────────────────────────────────────
+function drawCliffCharts() {
+  const posGroups = {
+    qb: vorpData.filter(p=>p.pos==='QB').slice(0,20),
+    rb: vorpData.filter(p=>p.pos==='RB').slice(0,20),
+    wr: vorpData.filter(p=>p.pos==='WR').slice(0,20),
+    te: vorpData.filter(p=>p.pos==='TE').slice(0,15),
+  };
+  const colors = { qb:'#FFD700', rb:'#6ee7b7', wr:'#00b4d8', te:'#c084fc' };
+
+  Object.entries(posGroups).forEach(([pos, players]) => {
+    const canvas = document.getElementById(`chart-${pos}`);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.offsetWidth || 300;
+    const H = 160;
+    canvas.width = W;
+    canvas.height = H;
+
+    const scores = players.map(p => pos==='qb' ? (p.vorp_2qb_adjusted||p.vorp_raw) : p.vorp_adjusted);
+    const maxV = Math.max(...scores, 1);
+    const barW = Math.max(8, Math.floor((W - 20) / scores.length) - 2);
+    const tooltip = canvas._tooltip || (canvas._tooltip = {});
+
+    ctx.clearRect(0,0,W,H);
+    scores.forEach((v, i) => {
+      const p = players[i];
+      const bh = Math.round((v / maxV) * (H - 28));
+      const x = 10 + i * (barW + 2);
+      const y = H - bh - 20;
+
+      // Color: cliff = red gradient, else green→yellow
+      const isCliff = p.cliff === 'MAJOR' || p.cliff === 'true';
+      const isMajor = p.cliff === 'MAJOR';
+
+      if (isMajor) {
+        ctx.fillStyle = '#ff3b3b';
+      } else if (isCliff) {
+        ctx.fillStyle = '#ff9f43';
+      } else {
+        const ratio = i / scores.length;
+        const r = Math.round(76 + ratio * 120);
+        const g = Math.round(175 - ratio * 60);
+        ctx.fillStyle = `rgb(${r},${g},80)`;
+      }
+      ctx.fillRect(x, y, barW, bh);
+
+      // Cliff line
+      if (isCliff && i < scores.length - 1) {
+        const lx = x + barW + 1;
+        ctx.strokeStyle = isMajor ? '#ff3b3b' : '#ff9f43';
+        ctx.lineWidth = isMajor ? 2.5 : 1.5;
+        ctx.setLineDash([3,2]);
+        ctx.beginPath(); ctx.moveTo(lx, 2); ctx.lineTo(lx, H-20); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = isMajor ? '#ff3b3b' : '#ff9f43';
+        ctx.font = `bold 8px JetBrains Mono, monospace`;
+        ctx.fillText(isMajor?'🚨':'⚠', lx-4, 10);
+      }
+
+      // Player label (abbreviated)
+      if (barW >= 10) {
+        ctx.fillStyle = '#6b7fa3';
+        ctx.font = '8px monospace';
+        ctx.save(); ctx.translate(x + barW/2, H - 4);
+        ctx.rotate(-Math.PI/2);
+        const label = p.player.split(' ').pop().slice(0,6);
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+      }
+    });
+
+    // Hover tooltip
+    canvas.onmousemove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const idx = Math.floor((mx - 10) / (barW + 2));
+      if (idx >= 0 && idx < players.length) {
+        const p = players[idx];
+        const v = scores[idx];
+        canvas.title = `${p.player} | VORP: ${v} | Drop→next: ${p.drop_to_next} (${p.drop_pct}%)${p.cliff!=='false'?' ⚠️ CLIFF':''}`;
+      }
+    };
+  });
+}
+
+// ─── VORP Table ─────────────────────────────────────────────
+function setVORPFilter(pos, btn) {
+  vorpPosFilter = pos;
+  document.querySelectorAll('#tab-vorp .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderVORPTable();
+}
+
+function sortVORP(col) {
+  if (vorpSort.col === col) vorpSort.dir *= -1;
+  else { vorpSort.col = col; vorpSort.dir = 1; }
+  renderVORPTable();
+}
+
+function renderVORPTable() {
+  const q = (document.getElementById('vorpSearch')?.value||'').toLowerCase();
+  const numCols = ['vorp_rank','vorp_raw','vorp_adjusted','vorp_2qb_adjusted','drop_to_next','drop_pct'];
+  const data = vorpData.filter(p => {
+    if (vorpPosFilter !== 'ALL' && p.pos !== vorpPosFilter) return false;
+    if (q && !p.player.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b) => {
+    let av = a[vorpSort.col], bv = b[vorpSort.col];
+    if (numCols.includes(vorpSort.col)) { av=+av||0; bv=+bv||0; }
+    else { av=av||''; bv=bv||''; }
+    if (av < bv) return -vorpSort.dir;
+    if (av > bv) return vorpSort.dir;
+    return 0;
+  });
+
+  // top-5 per position for gold bg
+  const posTop5 = {};
+  vorpData.forEach(p => {
+    posTop5[p.pos] = posTop5[p.pos] || [];
+    posTop5[p.pos].push(p.vorp_adjusted);
+  });
+  Object.keys(posTop5).forEach(k => posTop5[k].sort((a,b)=>b-a).splice(5));
+  const isTop5 = p => (posTop5[p.pos]||[]).includes(p.vorp_adjusted);
+
+  document.getElementById('vorpBody').innerHTML = data.map(p => {
+    const rowStyle = p.cliff==='MAJOR' ? 'border-left:3px solid #ff3b3b;background:rgba(255,59,59,.05)'
+                   : p.cliff==='true'  ? 'border-left:3px solid #ff9f43;background:rgba(255,159,67,.04)'
+                   : isTop5(p)         ? 'background:rgba(255,215,0,.07)' : '';
+
+    const cliffBadge = p.cliff==='MAJOR' ? '<span style="color:#ff3b3b;font-weight:700">🚨 MAJOR</span>'
+                     : p.cliff==='true'  ? '<span style="color:#ff9f43;font-weight:700">⚠️ CLIFF</span>'
+                     : '—';
+
+    const tepBadge = p.te_premium_pts > 20
+      ? `<span style="background:rgba(0,180,216,.15);color:#00b4d8;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">+${p.te_premium_pts} TEP</span>` : '';
+
+    const v2qb = p.vorp_2qb_adjusted != null
+      ? `<strong style="color:var(--qb)">${p.vorp_2qb_adjusted}</strong>` : '—';
+
+    const dropColor = p.drop_pct >= 25 ? '#ff3b3b' : p.drop_pct >= 15 ? '#ff9f43' : 'var(--muted)';
+    const posClass = posIsIDP(p.pos)?'pos-EDGE':`pos-${p.pos}`;
+
+    return `<tr style="${rowStyle}">
+      <td><strong>${p.vorp_rank}</strong></td>
+      <td>${p.player}</td>
+      <td><span class="badge-pos ${posClass}">${p.pos}</span></td>
+      <td>${p.team}</td>
+      <td>${p.vorp_raw} ${tepBadge}</td>
+      <td><strong>${p.vorp_adjusted}</strong></td>
+      <td>${v2qb}</td>
+      <td style="color:${dropColor}">−${p.drop_to_next} <span style="font-size:10px">(${p.drop_pct}%)</span></td>
+      <td>${cliffBadge}</td>
+    </tr>`;
+  }).join('');
+
+  document.querySelectorAll('#vorpTable th').forEach(th => {
+    const col = th.dataset.col;
+    th.classList.toggle('sorted', col===vorpSort.col);
+    const arr = th.querySelector('.sort-arrow');
+    if (arr) arr.textContent = col===vorpSort.col ? (vorpSort.dir===1?'▲':'▼') : '▼';
+  });
+}
+
+// ─── Cliff Insight Cards ─────────────────────────────────────
+function renderCliffCards() {
+  const cliffs = vorpData.filter(p => p.cliff==='MAJOR'||p.cliff==='true')
+    .sort((a,b) => b.drop_pct - a.drop_pct);
+
+  const posLabels = {QB:'QB',RB:'RB',WR:'WR',TE:'TE'};
+  // Build one card per position for the biggest cliff
+  const seen = {};
+  const cards = [];
+  cliffs.forEach(p => {
+    if (seen[p.pos]) return;
+    seen[p.pos] = true;
+    const isMajor = p.cliff === 'MAJOR';
+    const posPlayers = vorpData.filter(d=>d.pos===p.pos).sort((a,b)=>a.vorp_rank-b.vorp_rank);
+    const cliffIdx = posPlayers.findIndex(d=>d.player===p.player);
+    const above = posPlayers.slice(0, cliffIdx+1).slice(-3); // up to 3 players above cliff
+    const below = posPlayers[cliffIdx+1];
+    const pickEst = p.pos==='QB'? (p.vorp_rank<=2?'R1':'R2-R3')
+                  : p.pos==='RB'? (p.vorp_rank<=5?'R1':'R2')
+                  : p.pos==='TE'? (p.vorp_rank<=2?'R2-R3':'R3-R4') : 'R4-R5';
+    const border = isMajor ? '#ff3b3b' : '#ff9f43';
+    const icon = isMajor ? '🚨 MAJOR' : '⚠️';
+    const posColor = p.pos==='QB'?'var(--qb)':p.pos==='RB'?'#6ee7b7':p.pos==='WR'?'var(--boost)':'#c084fc';
+    cards.push(`
+      <div class="card" style="border-color:${border};border-width:1.5px">
+        <div style="font-size:13px;font-weight:700;color:${border};margin-bottom:8px">${icon} ${p.pos} CLIFF after ${p.player}</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Target window: <strong style="color:${posColor}">${pickEst}</strong></div>
+        ${above.map(pl=>`<div style="font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+          <span style="color:var(--gem)">✓</span> ${pl.player}
+          <span style="float:right;color:var(--text)">+${pl.pos==='QB'?(pl.vorp_2qb_adjusted||pl.vorp_raw):pl.vorp_adjusted}</span>
+        </div>`).join('')}
+        <div style="font-size:12px;padding:3px 0;margin-top:4px;color:${border}">
+          ↓ <strong>${below?below.player:'Wasteland'}</strong>
+          <span style="float:right">${below?`+${below.pos==='QB'?(below.vorp_2qb_adjusted||below.vorp_raw):below.vorp_adjusted}`:'—'}</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:${border};font-weight:700">
+          Drop: ${p.drop_to_next} pts (${p.drop_pct}%) — ${isMajor?'MUST draft before this cliff':'draft before cliff hits'}
+        </div>
+      </div>`);
+  });
+
+  // Special QB 2QB card
+  const qbMajor = vorpData.find(p=>p.pos==='QB'&&p.cliff==='MAJOR');
+  if (qbMajor) {
+    cards.unshift(`
+      <div class="card" style="border-color:var(--qb);border-width:1.5px;grid-column:span 1">
+        <div style="font-size:13px;font-weight:700;color:var(--qb);margin-bottom:6px">⚡ 2QB FORMAT — ALLEN IS IRREPLACEABLE</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">2QB-adjusted VORP gap: Allen 109 vs Daniels 64 = <strong style="color:var(--bust)">−45 pts</strong></div>
+        <div style="font-size:11px;color:var(--text)">Allen is worth an extra <strong style="color:var(--gem)">~18 VORP pts</strong> in your 2QB format vs standard 1QB leagues. This is the single biggest positional value gap on the board.</div>
+      </div>`);
+  }
+
+  document.getElementById('cliffCards').innerHTML = cards.join('');
+}
+
+// ─── WR Depth Banner ──────────────────────────────────────────
+function renderWRDepth() {
+  const wrs = vorpData.filter(p=>p.pos==='WR').sort((a,b)=>a.vorp_rank-b.vorp_rank);
+  if (!wrs.length) return;
+  const wr1 = wrs[0]?.vorp_adjusted || 1;
+  const wr15 = wrs[14]?.vorp_adjusted || 0;
+  const dropPct = Math.round((wr1-wr15)/wr1*100);
+  const isFlat = dropPct < 60;
+  const biggestCliff = wrs.findIndex(p=>p.cliff==='MAJOR'||p.cliff==='true');
+
+  document.getElementById('wrDepthBanner').innerHTML = isFlat
+    ? `<div style="background:rgba(76,175,80,.12);border:1px solid var(--gem);border-radius:6px;padding:12px 16px;font-size:13px;font-weight:700;color:var(--gem)">
+        ✅ WR DEPTH CONFIRMED — WR1→WR15 drops only ${dropPct}%. Safe to wait until R4-R5 on WRs. No early run needed.
+        ${biggestCliff > 0 ? `<span style="color:var(--muted);font-weight:400;font-size:11px;display:block;margin-top:4px">First cliff appears at WR${biggestCliff+1} (${wrs[biggestCliff]?.player})</span>` : ''}
+       </div>`
+    : `<div style="background:rgba(255,107,107,.12);border:1px solid var(--bust);border-radius:6px;padding:12px 16px;font-size:13px;font-weight:700;color:var(--bust)">
+        ⚠️ WR DROPS SHARPLY — ${dropPct}% decline R1→R15. Secure WR alpha by R2.
+       </div>`;
+
+  document.getElementById('wrDepthBody').innerHTML = wrs.slice(0,30).map((p,i) => {
+    const isCliff = p.cliff==='MAJOR'||p.cliff==='true';
+    const rowStyle = isCliff ? 'background:rgba(255,107,107,.06);border-left:2px solid #ff9f43' : i%2===0?'background:rgba(255,255,255,.02)':'';
+    const dropColor = p.drop_pct>=25?'#ff3b3b':p.drop_pct>=15?'#ff9f43':'var(--muted)';
+    return `<tr style="${rowStyle}">
+      <td>WR${p.vorp_rank}</td>
+      <td>${p.player}${isCliff?` <span style="color:#ff9f43;font-size:10px">⚠️</span>`:''}</td>
+      <td>${p.team}</td>
+      <td><strong style="color:var(--boost)">${p.vorp_adjusted}</strong></td>
+      <td style="color:${dropColor}">−${p.drop_to_next} (${p.drop_pct}%)</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Strategy Validator ───────────────────────────────────────
+function validateStrategy() {
+  const input = document.getElementById('stratInput').value.trim().toUpperCase();
+  if (!input) return;
+  const rounds = input.split(/\s+/);
+
+  // Best available VORP per position at each round slot
+  const posQueues = {};
+  ['QB','RB','WR','TE'].forEach(pos => {
+    posQueues[pos] = vorpData.filter(p=>p.pos===pos).sort((a,b)=>a.vorp_rank-b.vorp_rank).map(p=>({
+      player:p.player, vorp: pos==='QB'?(p.vorp_2qb_adjusted||p.vorp_raw):p.vorp_adjusted
+    }));
+  });
+  posQueues['IDP'] = [{player:'Elite IDP (avg)',vorp:22},{player:'Solid IDP (avg)',vorp:17},{player:'Stash IDP (avg)',vorp:12}];
+
+  const posPicked = {QB:0,RB:0,WR:0,TE:0,IDP:0};
+  let totalVORP = 0;
+  const picks = [];
+  rounds.slice(0,10).forEach((pos,i) => {
+    const q = posQueues[pos];
+    if (!q) { picks.push({round:i+1,pos,player:'Unknown pos',vorp:0}); return; }
+    const idx = posPicked[pos]||0;
+    const p = q[idx] || {player:`${pos}${idx+1} (proj)`, vorp:0};
+    posPicked[pos] = idx+1;
+    totalVORP += p.vorp;
+    picks.push({round:i+1,pos,player:p.player,vorp:p.vorp});
+  });
+
+  // Compare to QB-heavy and RB-heavy alternatives
+  const altQB = [...posQueues['QB'].slice(0,2),...posQueues['RB'].slice(0,2),...posQueues['WR'].slice(0,3),...posQueues['TE'].slice(0,1),...Array(2).fill({player:'IDP',vorp:19.5})].slice(0,10).reduce((s,p)=>s+p.vorp,0);
+  const altRB = [...posQueues['RB'].slice(0,3),...posQueues['QB'].slice(0,2),...posQueues['WR'].slice(0,3),...posQueues['TE'].slice(0,1),...[{player:'IDP',vorp:19.5}]].slice(0,10).reduce((s,p)=>s+p.vorp,0);
+
+  const eff = Math.min(100, Math.round(totalVORP / Math.max(altQB,altRB,1) * 100));
+  const effColor = eff>=85?'var(--gem)':eff>=70?'var(--idp)':'var(--bust)';
+
+  document.getElementById('stratResult').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--muted)">Your VORP</div>
+        <div style="font-size:22px;font-weight:700;color:${effColor}">${totalVORP}</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--muted)">QB-Heavy Alt</div>
+        <div style="font-size:22px;font-weight:700;color:var(--qb)">${altQB}</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--muted)">Efficiency</div>
+        <div style="font-size:22px;font-weight:700;color:${effColor}">${eff}%</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Round</th><th>Pos</th><th>Best Available</th><th>VORP</th><th>Signal</th></tr></thead>
+        <tbody>${picks.map(p => {
+          const cliffP = vorpData.find(d=>d.pos===p.pos&&d.cliff!=='false'&&(vorpData.filter(q=>q.pos===p.pos&&q.vorp_rank<=p.round).length>0));
+          const vColor = p.vorp>=80?'var(--qb)':p.vorp>=40?'var(--gem)':p.vorp>=20?'var(--boost)':'var(--muted)';
+          return `<tr><td>R${p.round}</td><td><span class="badge-pos pos-${p.pos}">${p.pos}</span></td><td>${p.player}</td><td style="color:${vColor}"><strong>${p.vorp}</strong></td><td>${p.vorp>=100?'🔥 Elite value':p.vorp>=50?'✅ Solid':p.vorp>=20?'📦 OK':'⚠️ Low'}</td></tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -434,7 +845,7 @@ async function init() {
 // ═══════════════════════════════════════════════════════════
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const tabs = ['draft','sim','idp','vegas','tracker'];
+    const tabs = ['draft','sim','idp','vegas','vorp','tracker'];
     t.classList.toggle('active', tabs[i] === name);
   });
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -511,7 +922,10 @@ function renderBoard() {
       <td><span class="badge-round">R${p.target_round}</span></td>
       <td><span class="badge-tier tier-R${p.target_round}">${p.tier||`R${p.target_round}`}</span></td>
       <td>${flag}</td>
-      <td style="max-width:260px;white-space:normal;font-size:11px;color:var(--muted)">${p.notes||''}</td>
+      <td style="max-width:280px;white-space:normal;font-size:11px;color:var(--muted)">
+        ${p.vorp_adjusted > 0 ? `<span style="color:var(--boost);font-weight:700">📈 VORP +${p.vorp_adjusted}${p.vorp_2qb_adjusted?` (2QB +${p.vorp_2qb_adjusted})`:''}</span>${p.cliff&&p.cliff!=='false'?` <span style="color:${p.cliff==='MAJOR'?'#ff3b3b':'#ff9f43'};font-weight:700">${p.cliff==='MAJOR'?'🚨 MAJOR CLIFF':'⚠️ CLIFF'}</span>`:''}<br>` : ''}
+        ${p.notes||''}
+      </td>
     </tr>`;
   }).join('');
 

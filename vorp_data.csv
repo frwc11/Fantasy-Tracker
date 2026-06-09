@@ -1,0 +1,92 @@
+player,pos,team,vorp_rank,vorp_raw,vorp_adjusted,vorp_2qb_adjusted,te_premium_pts,proj_rec,drop_to_next,drop_pct,cliff,cliff_2qb,next_player
+Josh Allen,QB,BUF,1,91,91,109,,,45,49.5,MAJOR,MAJOR,Jayden Daniels
+Jayden Daniels,QB,WAS,2,46,46,64,,,1,2.2,false,false,Drake Maye
+Drake Maye,QB,NE,3,45,45,63,,,1,2.2,false,false,Lamar Jackson
+Lamar Jackson,QB,BAL,4,44,44,62,,,4,9.1,false,false,Jalen Hurts
+Jalen Hurts,QB,PHI,5,40,40,58,,,9,22.5,true,true,Jaxson Dart
+Jaxson Dart,QB,NYG,6,31,31,49,,,1,3.2,false,false,Joe Burrow
+Joe Burrow,QB,CIN,7,30,30,48,,,2,6.7,false,false,Brock Purdy
+Brock Purdy,QB,SF,8,28,28,46,,,3,10.7,false,false,Trevor Lawrence
+Trevor Lawrence,QB,JAC,9,25,25,43,,,0,0.0,false,false,Dak Prescott
+Dak Prescott,QB,DAL,10,25,25,43,,,2,8.0,false,false,Patrick Mahomes
+Patrick Mahomes,QB,KC,11,23,23,41,,,5,21.7,true,false,Justin Herbert
+Justin Herbert,QB,LAC,12,18,18,36,,,5,27.8,MAJOR,false,Caleb Williams
+Caleb Williams,QB,CHI,13,13,13,31,,,1,7.7,false,false,Matthew Stafford
+Matthew Stafford,QB,LAR,14,12,12,30,,,2,16.7,true,false,Bo Nix
+Bo Nix,QB,DEN,15,10,10,28,,,3,30.0,MAJOR,false,Baker Mayfield
+Baker Mayfield,QB,TB,16,7,7,25,,,1,14.3,false,false,Daniel Jones
+Daniel Jones,QB,IND,17,6,6,24,,,6,100.0,MAJOR,MAJOR,Jared Goff
+Jared Goff,QB,DET,18,0,0,18,,,0,0,false,false,Tyler Shough
+Tyler Shough,QB,NO,19,0,0,18,,,0,0,false,false,Malik Willis
+Malik Willis,QB,MIA,20,0,0,18,,,0,0,false,false,Sam Darnold
+Sam Darnold,QB,MIN,21,0,0,18,,,0,0,false,false,Shedeur Sanders
+Shedeur Sanders,QB,CLE,22,0,0,18,,,0,0,false,false,—
+Jahmyr Gibbs,RB,DET,1,294,294,,,,0,0.0,false,,Bijan Robinson
+Bijan Robinson,RB,ATL,2,294,294,,,,48,16.3,true,,Christian McCaffrey
+Christian McCaffrey,RB,SF,3,246,246,,,,2,0.8,false,,Jonathan Taylor
+Jonathan Taylor,RB,IND,4,244,244,,,,16,6.6,false,,De'Von Achane
+De'Von Achane,RB,MIA,5,228,228,,,,21,9.2,false,,Chase Brown
+Chase Brown,RB,CIN,6,207,207,,,,5,2.4,false,,Ashton Jeanty
+Ashton Jeanty,RB,LVR,7,202,202,,,,0,0.0,false,,Derrick Henry
+Derrick Henry,RB,BAL,8,202,202,,,,11,5.4,false,,James Cook
+James Cook,RB,BUF,9,191,191,,,,2,1.0,false,,Saquon Barkley
+Saquon Barkley,RB,PHI,10,189,189,,,,41,21.7,true,,Omarion Hampton
+Omarion Hampton,RB,LAC,11,148,148,,,,0,0.0,false,,Breece Hall
+Breece Hall,RB,NYJ,12,148,148,,,,2,1.4,false,,Kyren Williams
+Kyren Williams,RB,LAR,13,146,146,,,,7,4.8,false,,Jeremiyah Love
+Jeremiyah Love,RB,ARI,14,139,139,,,,3,2.2,false,,Cam Skattebo
+Cam Skattebo,RB,NYG,15,136,136,,,,3,2.2,false,,Kenneth Walker
+Kenneth Walker,RB,KC,16,133,133,,,,5,3.8,false,,Bucky Irving
+Bucky Irving,RB,TB,17,128,128,,,,8,6.2,false,,Josh Jacobs
+Josh Jacobs,RB,GB,18,120,120,,,,10,8.3,false,,TreVeyon Henderson
+TreVeyon Henderson,RB,NE,19,110,110,,,,5,4.5,false,,Quinshon Judkins
+Quinshon Judkins,RB,CLE,20,105,105,,,,5,4.8,false,,Javonte Williams
+Javonte Williams,RB,DAL,21,100,100,,,,5,5.0,false,,Zach Charbonnet
+Zach Charbonnet,RB,SEA,22,95,95,,,,7,7.4,false,,Rashad White
+Rashad White,RB,TB,23,88,88,,,,6,6.8,false,,Blake Corum
+Blake Corum,RB,LAR,24,82,82,,,,0,0,false,,—
+Puka Nacua,WR,LAR,1,148,148,,,,6,4.1,false,,Jaxon Smith-Njigba
+Jaxon Smith-Njigba,WR,SEA,2,142,142,,,,18,12.7,false,,Ja'Marr Chase
+Ja'Marr Chase,WR,CIN,3,124,124,,,,10,8.1,false,,Amon-Ra St. Brown
+Amon-Ra St. Brown,WR,DET,4,114,114,,,,9,7.9,false,,Drake London
+Drake London,WR,ATL,5,105,105,,,,11,10.5,false,,Rashee Rice
+Rashee Rice,WR,KC,6,94,94,,,,4,4.3,false,,CeeDee Lamb
+CeeDee Lamb,WR,DAL,7,90,90,,,,2,2.2,false,,George Pickens
+George Pickens,WR,DAL,8,88,88,,,,5,5.7,false,,A.J. Brown
+A.J. Brown,WR,NE,9,83,83,,,,3,3.6,false,,Justin Jefferson
+Justin Jefferson,WR,MIN,10,80,80,,,,4,5.0,false,,Malik Nabers
+Malik Nabers,WR,NYG,11,76,76,,,,4,5.3,false,,Marvin Harrison Jr
+Marvin Harrison Jr,WR,ARI,12,72,72,,,,4,5.6,false,,Rome Odunze
+Rome Odunze,WR,CHI,13,68,68,,,,4,5.9,false,,Brian Thomas Jr
+Brian Thomas Jr,WR,JAC,14,64,64,,,,4,6.2,false,,Travis Hunter
+Travis Hunter,WR,JAC,15,60,60,,,,5,8.3,false,,Terry McLaurin
+Terry McLaurin,WR,WAS,16,55,55,,,,3,5.5,false,,Jaylen Waddle
+Jaylen Waddle,WR,MIA,17,52,52,,,,4,7.7,false,,Stefon Diggs
+Stefon Diggs,WR,NE,18,48,48,,,,3,6.2,false,,Quentin Johnston
+Quentin Johnston,WR,LAC,19,45,45,,,,3,6.7,false,,Luther Burden
+Luther Burden,WR,CHI,20,42,42,,,,3,7.1,false,,Rashid Shaheed
+Rashid Shaheed,WR,NO,21,39,39,,,,3,7.7,false,,Keon Coleman
+Keon Coleman,WR,BUF,22,36,36,,,,3,8.3,false,,Romeo Doubs
+Romeo Doubs,WR,GB,23,33,33,,,,3,9.1,false,,Ja'Lynn Polk
+Ja'Lynn Polk,WR,NE,24,30,30,,,,2,6.7,false,,Josh Downs
+Josh Downs,WR,IND,25,28,28,,,,3,10.7,false,,Ladd McConkey
+Ladd McConkey,WR,LAC,26,25,25,,,,5,20.0,true,,Adam Thielen
+Adam Thielen,WR,CAR,27,20,20,,,,4,20.0,true,,Davante Adams
+Davante Adams,WR,FA,28,16,16,,,,3,18.8,true,,Chris Godwin
+Chris Godwin,WR,TB,29,13,13,,,,3,23.1,true,,DeVonta Smith
+DeVonta Smith,WR,PHI,30,10,10,,,,0,0,false,,—
+Trey McBride,TE,ARI,1,55,105.0,,50.0,100,4.5,4.3,false,,Brock Bowers
+Brock Bowers,TE,LVR,2,53,100.5,,47.5,95,16.5,16.4,true,,Colston Loveland
+Colston Loveland,TE,CHI,3,44,84.0,,40.0,80,17.5,20.8,true,,Tyler Warren
+Tyler Warren,TE,IND,4,29,66.5,,37.5,75,3.5,5.3,false,,Dallas Goedert
+Dallas Goedert,TE,PHI,5,28,63.0,,35.0,70,1.0,1.6,false,,Kyle Pitts
+Kyle Pitts,TE,ATL,6,27,62.0,,35.0,70,3.5,5.6,false,,Tucker Kraft
+Tucker Kraft,TE,GB,7,26,58.5,,32.5,65,-4.0,-6.8,false,,Sam LaPorta
+Sam LaPorta,TE,DET,8,25,62.5,,37.5,75,9.0,14.4,false,,Harold Fannin Jr
+Harold Fannin Jr,TE,CLE,9,21,53.5,,32.5,65,3.5,6.5,false,,George Kittle
+George Kittle,TE,SF,10,20,50.0,,30.0,60,5.5,11.0,false,,Isaiah Likely
+Isaiah Likely,TE,NYG,11,17,44.5,,27.5,55,0.0,0.0,false,,Travis Kelce
+Travis Kelce,TE,KC,12,17,44.5,,27.5,55,7.5,16.9,true,,Ja'Tavion Sanders
+Ja'Tavion Sanders,TE,IND,13,12,37.0,,25.0,50,4.0,10.8,false,,Cade Otton
+Cade Otton,TE,TB,14,9,33.0,,24.0,48,4.5,13.6,false,,Dalton Kincaid
+Dalton Kincaid,TE,BUF,15,6,28.5,,22.5,45,0,0,false,,—
