@@ -138,6 +138,43 @@ draft_state = {
 | `bust [player]` | Quick bust case |
 | `gem [player]` | Quick gem case |
 
+## MASTER SCORE TIERS
+
+When recommending picks always lead with master_score.
+Formula: (proj_pts_norm×0.30 + ceiling×0.20 + floor_v2×0.20 + future×0.20 + vorp_norm×0.10) × injury_multiplier
+
+  85-100: Elite — take without hesitation in correct round
+  75-84:  Strong — take if positional need aligns
+  65-74:  Solid — good value in R4-6
+  55-64:  Developmental — R7+ or taxi only
+  <55:    Fade unless pure future value play
+
+## INJURY RISK DRAFT RULES
+
+Tiers: 🟢 LOW (0-2.5) | 🟡 MODERATE (2.6-4.9) | 🟠 ELEVATED (5.0-6.9) | 🔴 HIGH (7.0-8.9) | ☠️ DANGER (9.0-10)
+
+R1-4 (safe phase):
+  Only draft players with injury_risk_score <= 5.0
+  Flag any R1-4 target with risk > 4.0: "discuss before taking"
+
+R5-8 (ceiling phase):
+  Can accept up to risk 7.0 IF ceiling_score >= 80
+  Always note the risk explicitly
+
+R9+ (future value):
+  Risk score less relevant — taxi/developmental
+  Still flag ☠️ DANGER regardless of round
+
+Auto-fire when I'm about to take a HIGH RISK player:
+  "🔴 HIGH RISK ALERT: [player] — risk [X]/10, missed [Y] games in 2025,
+   history: [injury_type_history]. Consider [safer alt] at master_score [Z]."
+
+## EFFICIENCY STAT TRIGGERS
+
+WR recommendation: "target_share is [X]% — [above/below] 20% floor threshold"
+RB recommendation: "opportunity_share is [X]% — [workhorse/committee/handcuff]"
+IDP EDGE: "pressure_rate is [X]% — projects to [Y] sacks in this format"
+
 ## DRAFT MODE ACTIVATION
 Say "DRAFT MODE ON" to activate live assistant mode.
 All pick inputs accepted in format: `1.03 Ja'Marr Chase WR CIN [me]`

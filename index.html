@@ -187,6 +187,7 @@ tr.bust-row{background:rgba(255,107,107,0.06)}
   <div class="tab" onclick="switchTab('idp')">🛡 IDP Board</div>
   <div class="tab" onclick="switchTab('vegas')">🎰 Vegas Overlay</div>
   <div class="tab" onclick="switchTab('vorp')">📉 VORP &amp; Cliffs</div>
+  <div class="tab" onclick="switchTab('injury')">🩹 Injury &amp; Risk</div>
   <div class="tab" onclick="switchTab('tracker')">🔴 Live Tracker</div>
 </div>
 
@@ -206,12 +207,14 @@ tr.bust-row{background:rgba(255,107,107,0.06)}
       <thead>
         <tr>
           <th onclick="sortBoard('my_rank')" data-col="my_rank">Rank<span class="sort-arrow">▼</span></th>
+          <th onclick="sortBoard('master_score')" data-col="master_score">⭐<span class="sort-arrow">▼</span></th>
           <th onclick="sortBoard('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
           <th onclick="sortBoard('pos')" data-col="pos">Pos<span class="sort-arrow">▼</span></th>
           <th onclick="sortBoard('team')" data-col="team">Team<span class="sort-arrow">▼</span></th>
           <th onclick="sortBoard('age')" data-col="age">Age<span class="sort-arrow">▼</span></th>
           <th onclick="sortBoard('consensus_rank')" data-col="consensus_rank">Con.<span class="sort-arrow">▼</span></th>
           <th onclick="sortBoard('value_gap')" data-col="value_gap">Gap<span class="sort-arrow">▼</span></th>
+          <th onclick="sortBoard('injury_risk_score')" data-col="injury_risk_score">🩹<span class="sort-arrow">▼</span></th>
           <th onclick="sortBoard('target_round')" data-col="target_round">Target<span class="sort-arrow">▼</span></th>
           <th>Tier</th>
           <th>Flag</th>
@@ -380,6 +383,56 @@ tr.bust-row{background:rgba(255,107,107,0.06)}
 
 </div>
 
+<!-- ═══════════════════════════ INJURY & RISK ════════════════════════════ -->
+<div id="tab-injury" class="tab-content">
+
+  <div id="injuryWarningBanner" style="margin-bottom:14px"></div>
+
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start" class="injury-layout">
+
+    <!-- Left: Risk heat map table -->
+    <div>
+      <div class="section-label" style="margin-top:0">Risk Heat Map</div>
+      <div class="toolbar">
+        <button class="filter-btn active" onclick="setRiskFilter('ALL',this)">ALL</button>
+        <button class="filter-btn" onclick="setRiskFilter('LOW',this)" style="border-color:#4CAF50">🟢 Low</button>
+        <button class="filter-btn" onclick="setRiskFilter('MODERATE',this)" style="border-color:#FFD700">🟡 Moderate</button>
+        <button class="filter-btn" onclick="setRiskFilter('ELEVATED',this)" style="border-color:#ff9f43">🟠 Elevated</button>
+        <button class="filter-btn" onclick="setRiskFilter('HIGH',this)" style="border-color:#ff6b6b">🔴 High+</button>
+        <button class="filter-btn" onclick="sortInjury('master_score')" style="margin-left:auto">Sort: ⭐ Master</button>
+        <button class="filter-btn" onclick="sortInjury('injury_risk_score')">Sort: 🩹 Risk</button>
+      </div>
+      <div class="table-wrap">
+        <table id="injuryTable">
+          <thead><tr>
+            <th onclick="sortInjury('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
+            <th onclick="sortInjury('pos')" data-col="pos">Pos<span class="sort-arrow">▼</span></th>
+            <th onclick="sortInjury('injury_risk_score')" data-col="injury_risk_score">Risk<span class="sort-arrow">▼</span></th>
+            <th>Tier</th>
+            <th onclick="sortInjury('games_missed_2025')" data-col="games_missed_2025">2025<span class="sort-arrow">▼</span></th>
+            <th onclick="sortInjury('games_missed_2024')" data-col="games_missed_2024">2024<span class="sort-arrow">▼</span></th>
+            <th>Injury History</th>
+            <th onclick="sortInjury('master_score')" data-col="master_score">⭐ Master<span class="sort-arrow">▼</span></th>
+          </tr></thead>
+          <tbody id="injuryBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right: Safe Core panel -->
+    <div>
+      <div class="section-label" style="margin-top:0">🛡 Safe Core — R1–R4 Targets</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Risk ≤ 3.0 AND Floor ≥ 65. Sorted by master score.</div>
+      <div id="safeCoreList"></div>
+    </div>
+
+  </div>
+
+</div>
+<style>
+@media(max-width:700px){.injury-layout{grid-template-columns:1fr!important}}
+</style>
+
 <!-- ═══════════════════════════ LIVE TRACKER ═══════════════════════════ -->
 <div id="tab-tracker" class="tab-content">
   <div id="alertContainer"></div>
@@ -464,6 +517,8 @@ async function loadCSV(path) {
 }
 
 let vorpData = [];
+let injurySort  = {col:'injury_risk_score', dir:-1};
+let riskFilter  = 'ALL';
 let vorpSort = {col:'vorp_raw', dir:-1};
 let vorpPosFilter = 'ALL';
 
@@ -488,6 +543,9 @@ async function init() {
     p.vorp_adjusted = +p.vorp_adjusted || 0;
     p.vorp_2qb_adjusted = p.vorp_2qb_adjusted !== '' ? +p.vorp_2qb_adjusted : null;
     p.positional_drop = +p.positional_drop || 0;
+    p.master_score = p.master_score !== '' ? +p.master_score : 0;
+    p.injury_risk_score = p.injury_risk_score !== '' ? +p.injury_risk_score : 0;
+    p.floor_score_v2 = p.floor_score_v2 !== '' ? +p.floor_score_v2 : 0;
   });
   idpData.forEach(p => {
     p.proj_fppg = +p.proj_fppg || 0;
@@ -513,6 +571,7 @@ async function init() {
   buildVegasTeamCards();
   initTracker();
   renderVORPTab();
+  renderInjuryTab();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -845,7 +904,7 @@ function validateStrategy() {
 // ═══════════════════════════════════════════════════════════
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const tabs = ['draft','sim','idp','vegas','vorp','tracker'];
+    const tabs = ['draft','sim','idp','vegas','vorp','injury','tracker'];
     t.classList.toggle('active', tabs[i] === name);
   });
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -911,19 +970,25 @@ function renderBoard() {
     const posClass = posIsIDP(p.pos) ? 'pos-EDGE' : `pos-${p.pos}`;
     const targetNum = p.target_round || p.tier || '';
     const tierKey = (typeof targetNum === 'number' ? `R${targetNum}` : String(targetNum)).replace(/[^RrBb0-9]/g,'') || 'R10';
+    const ms = +p.master_score||0;
+    const msColor = ms>=85?'var(--qb)':ms>=75?'var(--gem)':ms>=65?'var(--boost)':ms>=55?'var(--idp)':'var(--muted)';
+    const ir = +p.injury_risk_score||0;
+    const irColor = ir<=2.5?'#4CAF50':ir<=4.9?'#FFD700':ir<=6.9?'#ff9f43':'#ff6b6b';
     return `<tr class="${rowClass}">
       <td><strong>${p.my_rank}</strong></td>
-      <td>${prefix}${p.player}</td>
+      <td><strong style="color:${msColor}">${ms||'—'}</strong></td>
+      <td>${prefix}${p.player} <button onclick="boardScorecard('${p.player.replace(/'/g,"\\'")}',this)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;padding:1px 3px">▼</button></td>
       <td><span class="badge-pos ${posClass}">${p.pos}</span></td>
       <td>${p.team}</td>
       <td>${p.age}</td>
       <td style="color:var(--muted)">${p.consensus_rank}</td>
       <td>${gapStr}</td>
+      <td><span style="color:${irColor};font-weight:700;font-size:12px">${ir||'—'}</span></td>
       <td><span class="badge-round">R${p.target_round}</span></td>
       <td><span class="badge-tier tier-R${p.target_round}">${p.tier||`R${p.target_round}`}</span></td>
       <td>${flag}</td>
-      <td style="max-width:280px;white-space:normal;font-size:11px;color:var(--muted)">
-        ${p.vorp_adjusted > 0 ? `<span style="color:var(--boost);font-weight:700">📈 VORP +${p.vorp_adjusted}${p.vorp_2qb_adjusted?` (2QB +${p.vorp_2qb_adjusted})`:''}</span>${p.cliff&&p.cliff!=='false'?` <span style="color:${p.cliff==='MAJOR'?'#ff3b3b':'#ff9f43'};font-weight:700">${p.cliff==='MAJOR'?'🚨 MAJOR CLIFF':'⚠️ CLIFF'}</span>`:''}<br>` : ''}
+      <td style="max-width:260px;white-space:normal;font-size:11px;color:var(--muted)">
+        ${p.vorp_adjusted > 0 ? `<span style="color:var(--boost);font-weight:700">📈 +${p.vorp_adjusted}</span>${p.cliff&&p.cliff!=='false'?` <span style="color:${p.cliff==='MAJOR'?'#ff3b3b':'#ff9f43'}">${p.cliff==='MAJOR'?'🚨':'⚠️'}</span>`:''} ` : ''}
         ${p.notes||''}
       </td>
     </tr>`;
@@ -1231,6 +1296,284 @@ const ROSTER_SLOTS = [
   {label:'FLEX1',pos:'FLEX'},{label:'FLEX2',pos:'FLEX'},
   {label:'IDP1',pos:'IDP'},{label:'IDP2',pos:'IDP'},{label:'IDP3',pos:'IDP'},
 ];
+
+// ═══════════════════════════════════════════════════════════
+// INJURY & RISK TAB
+// ═══════════════════════════════════════════════════════════
+function setRiskFilter(f, btn) {
+  riskFilter = f;
+  document.querySelectorAll('#tab-injury .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderInjuryTable();
+}
+
+function sortInjury(col) {
+  if (injurySort.col === col) injurySort.dir *= -1;
+  else { injurySort.col = col; injurySort.dir = col==='master_score'?-1:1; }
+  // update dir for risk: default desc
+  if (col==='injury_risk_score') injurySort.dir = -1;
+  renderInjuryTable();
+}
+
+function riskTierKey(tier) {
+  if (!tier) return 0;
+  if (tier.includes('DANGER'))   return 5;
+  if (tier.includes('HIGH'))     return 4;
+  if (tier.includes('ELEVATED')) return 3;
+  if (tier.includes('MODERATE')) return 2;
+  return 1;
+}
+
+function riskColor(risk) {
+  const r = +risk||0;
+  if (r <= 2.5) return 'rgba(76,175,80,.12)';
+  if (r <= 4.9) return 'rgba(255,215,0,.08)';
+  if (r <= 6.9) return 'rgba(255,159,67,.10)';
+  if (r <= 8.9) return 'rgba(255,107,107,.12)';
+  return 'rgba(180,0,0,.18)';
+}
+
+function riskBarHtml(risk) {
+  const r = +risk||0;
+  const pct = Math.round(r/10*100);
+  const color = r<=2.5?'#4CAF50':r<=4.9?'#FFD700':r<=6.9?'#ff9f43':r<=8.9?'#ff6b6b':'#cc0000';
+  return `<div style="display:flex;align-items:center;gap:6px">
+    <strong style="color:${color};min-width:28px">${r}</strong>
+    <div style="width:60px;height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden">
+      <div style="width:${pct}%;height:100%;background:${color};border-radius:3px"></div>
+    </div>
+  </div>`;
+}
+
+function renderInjuryTab() {
+  if (!boardData.length) return;
+  // Warning banner
+  const highRisk = boardData.filter(p => (+p.injury_risk_score||0) >= 7.0);
+  const el = document.getElementById('injuryWarningBanner');
+  if (el && highRisk.length > 0) {
+    el.innerHTML = `<div class="alert-banner" style="font-size:13px">
+      ${highRisk.length} player(s) on the board are 🔴 HIGH RISK or above:
+      ${highRisk.map(p=>`<strong>${p.player}</strong> (${p.injury_risk_score})`).join(', ')}
+      — review before committing draft capital.
+    </div>`;
+  }
+  renderInjuryTable();
+  renderSafeCore();
+}
+
+function renderInjuryTable() {
+  const numCols = ['injury_risk_score','games_missed_2025','games_missed_2024','master_score'];
+  const tierOrder = {'ALL':0,'LOW':1,'MODERATE':2,'ELEVATED':3,'HIGH':4};
+  const data = boardData.filter(p => {
+    const t = p.injury_risk_tier||'';
+    if (riskFilter === 'ALL') return true;
+    if (riskFilter === 'LOW')      return t.includes('LOW');
+    if (riskFilter === 'MODERATE') return t.includes('MODERATE');
+    if (riskFilter === 'ELEVATED') return t.includes('ELEVATED');
+    if (riskFilter === 'HIGH')     return t.includes('HIGH')||t.includes('DANGER');
+    return true;
+  }).filter(p => p.injury_risk_score !== '').sort((a,b) => {
+    let av = a[injurySort.col], bv = b[injurySort.col];
+    if (numCols.includes(injurySort.col)) { av=+av||0; bv=+bv||0; }
+    if (av < bv) return -injurySort.dir;
+    if (av > bv) return injurySort.dir;
+    return 0;
+  });
+
+  const posClass = p => posIsIDP(p.pos)?'pos-EDGE':`pos-${p.pos}`;
+  document.getElementById('injuryBody').innerHTML = data.map(p => {
+    const r = +p.injury_risk_score||0;
+    const ms = +p.master_score||0;
+    const msColor = ms>=85?'var(--qb)':ms>=75?'var(--gem)':ms>=65?'var(--boost)':ms>=55?'var(--idp)':'var(--muted)';
+    const gm25 = +p.games_missed_2025||0;
+    const gm24 = +p.games_missed_2024||0;
+    return `<tr style="background:${riskColor(r)}">
+      <td style="cursor:pointer;font-weight:600" onclick="showScorecard('${p.player.replace(/'/g,"\\'")}',this)">${p.player} <span style="font-size:10px;color:var(--muted)">▼</span></td>
+      <td><span class="badge-pos ${posClass(p)}">${p.pos}</span></td>
+      <td>${riskBarHtml(r)}</td>
+      <td style="font-size:12px">${p.injury_risk_tier||'—'}</td>
+      <td style="color:${gm25>=5?'#ff6b6b':gm25>=3?'#ff9f43':'var(--muted)'}">${gm25||0}</td>
+      <td style="color:${gm24>=5?'#ff6b6b':gm24>=3?'#ff9f43':'var(--muted)'}">${gm24||0}</td>
+      <td style="max-width:180px;white-space:normal;font-size:11px;color:var(--muted)">${p.injury_type_history||'—'}</td>
+      <td><strong style="color:${msColor}">${ms||'—'}</strong></td>
+    </tr>`;
+  }).join('');
+
+  document.querySelectorAll('#injuryTable th').forEach(th => {
+    const col = th.dataset.col;
+    const arr = th.querySelector('.sort-arrow');
+    if (arr) arr.textContent = col===injurySort.col?(injurySort.dir===1?'▲':'▼'):'▼';
+  });
+}
+
+function renderSafeCore() {
+  const safe = boardData
+    .filter(p => (+p.injury_risk_score||10) <= 3.0 && (+p.floor_score_v2||+p.floor_score||0) >= 65)
+    .sort((a,b) => (+b.master_score||0)-(+a.master_score||0))
+    .slice(0,12);
+
+  const posClass = p => posIsIDP(p.pos)?'pos-EDGE':`pos-${p.pos}`;
+  document.getElementById('safeCoreList').innerHTML = safe.map((p,i) => {
+    const ms = +p.master_score||0;
+    const msColor = ms>=85?'var(--qb)':ms>=75?'var(--gem)':'var(--boost)';
+    return `<div style="background:rgba(76,175,80,.06);border:1px solid rgba(76,175,80,.2);border-radius:6px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <span style="font-size:11px;color:var(--muted)">#${i+1} </span>
+        <strong style="font-size:13px">${p.player}</strong>
+        <span class="badge-pos ${posClass(p)}" style="margin-left:6px">${p.pos}</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:4px">${p.team}</span>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:14px;font-weight:700;color:${msColor}">${ms}</div>
+        <div style="font-size:10px;color:#4CAF50">🛡 Risk: ${p.injury_risk_score}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Full Player Scorecard (click-to-expand) ──────────────────────────────
+let _activeScorecardRow = null;
+
+function showScorecard(playerName, clickedTd) {
+  const tr = clickedTd.closest('tr');
+  // Toggle off if same player
+  if (_activeScorecardRow && _activeScorecardRow.previousSibling === tr) {
+    _activeScorecardRow.remove(); _activeScorecardRow = null; return;
+  }
+  if (_activeScorecardRow) { _activeScorecardRow.remove(); _activeScorecardRow = null; }
+
+  const p = boardData.find(d => d.player === playerName);
+  if (!p) return;
+
+  const eff = buildEffSummary(p);
+  const ms = +p.master_score||0;
+  const msColor = ms>=85?'var(--qb)':ms>=75?'var(--gem)':ms>=65?'var(--boost)':ms>=55?'var(--idp)':'var(--muted)';
+  const r = +p.injury_risk_score||0;
+  const rColor = r<=2.5?'#4CAF50':r<=4.9?'#FFD700':r<=6.9?'#ff9f43':r<=8.9?'#ff6b6b':'#cc0000';
+
+  function bar(val, max, color) {
+    const pct = Math.min(100, Math.round(val/max*100));
+    return `<div style="flex:1;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden">
+      <div style="width:${pct}%;height:100%;background:${color};border-radius:3px"></div>
+    </div>`;
+  }
+  function metricRow(icon, label, val, max, color) {
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">
+      <span style="width:16px">${icon}</span>
+      <span style="color:var(--muted);width:100px;flex-shrink:0">${label}</span>
+      ${bar(val,max,color)}
+      <strong style="width:42px;text-align:right;color:${color}">${val}</strong>
+    </div>`;
+  }
+
+  const html = `
+    <div style="background:#0d1827;border:1px solid rgba(0,180,216,.3);border-radius:8px;padding:14px;margin:4px 0">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <span style="font-size:15px;font-weight:700">${p.gem_flag==1?'💎 ':''}${p.player}</span>
+        <span class="badge-pos pos-${posIsIDP(p.pos)?'EDGE':p.pos}">${p.pos}</span>
+        <span style="color:var(--muted)">${p.team}</span>
+        <span style="color:var(--muted)">Age ${p.age}</span>
+        ${p.bust_flag==1?'<span style="color:var(--bust);font-weight:700">💀 BUST FLAG</span>':''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px">
+        <div>
+          ${metricRow('🎯','Proj 2026',+p.proj_pts_2026||0,420,'var(--boost)')}
+          ${metricRow('⬆️','Ceiling',+p.ceiling_score||0,100,'var(--gem)')}
+          ${metricRow('⬇️','Floor v2',+p.floor_score_v2||+p.floor_score||0,100,'#6ee7b7')}
+          ${metricRow('🔮','Future Val',+p.future_value||0,100,'var(--idp)')}
+          ${p.vorp_adjusted>0?metricRow('📈','VORP',+p.vorp_adjusted||0,300,'var(--boost)'):''}
+          ${p.vorp_2qb_adjusted?metricRow('⚡','2QB VORP',+p.vorp_2qb_adjusted||0,120,'var(--qb)'):''}
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+            <span style="font-size:12px;color:var(--muted)">🩹 Injury Risk</span>
+            <div style="flex:1;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden">
+              <div style="width:${r*10}%;height:100%;background:${rColor};border-radius:3px"></div>
+            </div>
+            <strong style="color:${rColor}">${r}</strong>
+            <span style="font-size:11px">${p.injury_risk_tier||''}</span>
+          </div>
+          ${metricRow('⭐','Master Score',ms,100,msColor)}
+          ${p.games_missed_2025!=null&&p.games_missed_2025!==''?`<div style="font-size:11px;color:var(--muted);padding:2px 0">Games missed: 2025=${p.games_missed_2025||0} / 2024=${p.games_missed_2024||0}</div>`:''}
+          ${p.injury_type_history?`<div style="font-size:11px;color:var(--muted);padding:2px 0">History: ${p.injury_type_history}</div>`:''}
+          ${p.games_played_pct_career?`<div style="font-size:11px;color:var(--muted)">Career GP%: ${p.games_played_pct_career}%</div>`:''}
+        </div>
+      </div>
+      ${eff?`<div style="border-top:1px solid rgba(255,255,255,.08);padding-top:8px;margin-top:4px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📊 Efficiency (2025)</div>
+        <div style="font-size:12px;color:var(--text)">${eff}</div>
+      </div>`:''}
+      ${p.cliff&&p.cliff!=='false'?`<div style="margin-top:8px;padding:6px 10px;background:rgba(255,59,59,.1);border-radius:4px;font-size:12px;color:${p.cliff==='MAJOR'?'#ff3b3b':'#ff9f43'};font-weight:700">
+        ${p.cliff==='MAJOR'?'🚨':'⚠️'} Last player before ${p.pos} ${p.cliff} CLIFF — Draft now or miss the window
+      </div>`:''}
+    </div>`;
+
+  const newTr = document.createElement('tr');
+  const td = document.createElement('td');
+  td.setAttribute('colspan','8');
+  td.innerHTML = html;
+  newTr.appendChild(td);
+  tr.insertAdjacentElement('afterend', newTr);
+  _activeScorecardRow = newTr;
+}
+
+function buildEffSummary(p) {
+  const parts = [];
+  if (p.snap_pct)              parts.push(`Snap: <strong>${p.snap_pct}%</strong>`);
+  if (p.target_share)          parts.push(`Tgt Share: <strong>${p.target_share}%</strong>`);
+  if (p.cpoe)                  parts.push(`CPOE: <strong>${+p.cpoe>0?'+':''}${p.cpoe}%</strong>`);
+  if (p.air_yards_per_att)     parts.push(`AY/att: <strong>${p.air_yards_per_att}</strong>`);
+  if (p.pressure_rate_faced)   parts.push(`Pressure: <strong>${p.pressure_rate_faced}%</strong>`);
+  if (p.opportunity_share)     parts.push(`Opp Share: <strong>${p.opportunity_share}%</strong>`);
+  if (p.yac_per_carry)         parts.push(`YAC/carry: <strong>${p.yac_per_carry}</strong>`);
+  if (p.broken_tackle_rate)    parts.push(`BTR: <strong>${p.broken_tackle_rate}%</strong>`);
+  if (p.separation)            parts.push(`Sep: <strong>${p.separation}</strong>`);
+  if (p.yprt)                  parts.push(`YPRT: <strong>${p.yprt}</strong>`);
+  if (p.snap_pct_def)          parts.push(`D-Snap: <strong>${p.snap_pct_def}%</strong>`);
+  if (p.pressure_rate_pass_rush) parts.push(`PR: <strong>${p.pressure_rate_pass_rush}%</strong>`);
+  if (p.pass_rush_win_rate)    parts.push(`PRWR: <strong>${p.pass_rush_win_rate}%</strong>`);
+  if (p.tackle_rate)           parts.push(`Tkl Rate: <strong>${p.tackle_rate}%</strong>`);
+  return parts.length ? parts.join(' &nbsp;|&nbsp; ') : null;
+}
+
+// ─── Also hook scorecard to draft board table ──────────────────────────────
+function boardScorecard(playerName, btn) {
+  const tr = btn.closest('tr');
+  const existingCard = tr.nextSibling;
+  if (existingCard && existingCard._isScorecard) {
+    existingCard.remove(); btn.textContent = '▼'; return;
+  }
+  btn.textContent = '▲';
+  const p = boardData.find(d=>d.player===playerName);
+  if (!p) return;
+
+  const eff = buildEffSummary(p);
+  const ms = +p.master_score||0;
+  const msColor = ms>=85?'var(--qb)':ms>=75?'var(--gem)':ms>=65?'var(--boost)':'var(--muted)';
+  const r = +p.injury_risk_score||0;
+  const rColor = r<=2.5?'#4CAF50':r<=4.9?'#FFD700':r<=6.9?'#ff9f43':'#ff6b6b';
+  const colCount = document.querySelector('#boardTable thead tr')?.children?.length || 11;
+
+  const card = document.createElement('tr');
+  card._isScorecard = true;
+  const td = document.createElement('td');
+  td.colSpan = colCount;
+  td.style.padding = '0 12px 8px';
+  td.innerHTML = `<div style="background:#0d1827;border:1px solid rgba(0,180,216,.25);border-radius:6px;padding:12px;font-size:12px">
+    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:8px">
+      <span>⭐ <strong style="color:${msColor}">${ms}</strong> master</span>
+      <span>🩹 <strong style="color:${rColor}">${r}</strong> ${p.injury_risk_tier||''}</span>
+      ${p.proj_pts_2026?`<span>🎯 <strong>${p.proj_pts_2026}</strong> proj pts</span>`:''}
+      ${p.ceiling_score?`<span>⬆️ <strong>${p.ceiling_score}</strong> ceil</span>`:''}
+      ${p.floor_score_v2?`<span>⬇️ <strong>${p.floor_score_v2}</strong> floor v2</span>`:''}
+      ${p.vorp_adjusted>0?`<span>📈 VORP <strong>+${p.vorp_adjusted}</strong></span>`:''}
+    </div>
+    ${eff?`<div style="color:var(--muted)">${eff}</div>`:''}
+    ${p.injury_type_history&&p.injury_type_history!=='None noted'?`<div style="color:#ff9f43;margin-top:4px">🩹 ${p.injury_type_history}</div>`:''}
+  </div>`;
+  card.appendChild(td);
+  tr.insertAdjacentElement('afterend', card);
+}
 
 function initTracker() {
   renderRoster();
