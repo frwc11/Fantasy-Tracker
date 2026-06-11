@@ -1,473 +1,407 @@
 <!--
 =======================================================================
-  2026 DYNASTY DRAFT DASHBOARD — index.html
+  2026 DYNASTY SF DRAFT — UNIFIED DASHBOARD
 =======================================================================
-  HOW TO REFRESH DATA:
-  • Overwrite draft_board.csv, vegas_overlay.csv, or idp_model.csv at
-    any time. The page re-reads all CSVs fresh on every load (no cache).
-  • round_report.md and cheatsheet.html are linked, not embedded here.
-
-  DRAFT DAY — LIVE TRACKER TAB:
-  1. Open this file in any browser (no server needed — file:// works).
-  2. Go to the "Live Tracker" tab.
-  3. Paste picks one at a time or in bulk into the text area using the
-     format: 1.01 Josh Allen QB BUF [Team Name]
-     Mark your own picks with [me] or [ME] as the team name.
-  4. Hit "Process Picks". Drafted players disappear from the board.
-     Your roster auto-fills. Needs tracker updates instantly.
-  5. 🚨 ALERT fires automatically if a gem falls 1+ round past their
-     target_round from draft_board.csv.
-
-  GARRETT / VERSE TRADE (June 2, 2026):
-  • Myles Garrett → LAR (reflected in idp_model.csv, team=LAR)
-  • Jared Verse → CLE (received in trade, gem_flag=1 maintained)
-  • Both team assignments are already updated in all CSV files.
-  • No manual edits needed — data reads from CSVs on load.
+  DATA REFRESH: Overwrite any CSV in this folder — page re-reads on load.
+  DRAFT DAY: Go to 🎯 Live Draft tab, paste picks as:
+    1.03 Ja'Marr Chase WR CIN [me]
+  TRADE NOTE: Garrett→LAR, Verse→CLE already reflected in CSVs (June 2026).
 =======================================================================
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>2026 Dynasty SF Draft — GM Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>2026 Dynasty SF Draft</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#060b14;--bg2:rgba(255,255,255,0.04);--bg3:rgba(255,255,255,0.08);
-  --border:rgba(255,255,255,0.1);--text:#e0e8f0;--muted:#6b7fa3;
+  --bg:#060b14;--bg2:rgba(255,255,255,.03);--bg3:rgba(255,255,255,.07);
+  --border:rgba(255,255,255,.08);--text:#e0e8f0;--muted:#6b7fa3;
   --gem:#4CAF50;--bust:#ff6b6b;--idp:#ff9f43;--qb:#FFD700;
-  --boost:#00b4d8;--tab-active:#1a2740;
+  --rb:#1dd1a1;--wr:#54a0ff;--te:#f368e0;--boost:#00b4d8;
+  --nav:#0a1628;--active:#FFD700;
 }
-body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:14px;min-height:100vh}
-a{color:var(--boost);text-decoration:none}
+html,body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:14px;min-height:100vh}
+a{color:var(--boost)}
+button,input,select,textarea{font-family:inherit}
 
-/* HEADER */
-.header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.header h1{font-size:16px;font-weight:700;letter-spacing:.5px}
-.header .badge{background:var(--gem);color:#000;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
-.header .trade-note{font-size:11px;color:var(--idp);margin-left:auto}
+/* ── NAV ── */
+.nav{position:sticky;top:0;z-index:100;background:var(--nav);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav-tab{padding:12px 16px;cursor:pointer;white-space:nowrap;font-size:12px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;transition:.15s;min-height:44px;display:flex;align-items:center;gap:5px;user-select:none}
+.nav-tab:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.nav-tab.active{color:var(--text);border-bottom-color:var(--active)}
 
-/* TABS */
-.tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
-.tab{padding:12px 18px;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;font-size:13px;font-weight:600;color:var(--muted);transition:all .15s;min-height:44px;display:flex;align-items:center}
-.tab:hover{color:var(--text);background:var(--bg2)}
-.tab.active{color:var(--text);border-bottom-color:var(--boost);background:var(--tab-active)}
-.tab-content{display:none;padding:16px}
-.tab-content.active{display:block}
+/* ── PANELS ── */
+.panel{display:none;padding:14px}
+.panel.active{display:block}
 
-/* TOOLBAR */
-.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
-.search-box{flex:1;min-width:160px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-family:inherit;font-size:13px;outline:none}
-.search-box:focus{border-color:var(--boost)}
-.filter-btn{padding:6px 14px;border:1px solid var(--border);background:var(--bg2);color:var(--muted);border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;transition:all .15s;min-height:36px}
-.filter-btn:hover{color:var(--text);border-color:var(--text)}
-.filter-btn.active{color:#000;font-weight:700}
-.filter-btn.QB.active{background:var(--qb);border-color:var(--qb)}
-.filter-btn.RB.active{background:#6ee7b7;border-color:#6ee7b7}
-.filter-btn.WR.active{background:var(--boost);border-color:var(--boost)}
-.filter-btn.TE.active{background:#c084fc;border-color:#c084fc}
-.filter-btn.IDP.active{background:var(--idp);border-color:var(--idp)}
-.filter-btn.ALL.active{background:var(--text);border-color:var(--text)}
+/* ── STAT CARDS ── */
+.stat-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;flex:1;min-width:120px}
+.stat-card .label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.stat-card .value{font-size:22px;font-weight:700;margin-top:2px}
 
-/* TABLES */
-.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;border:1px solid var(--border)}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{background:#0d1827;padding:10px 12px;text-align:left;font-weight:700;cursor:pointer;white-space:nowrap;border-bottom:1px solid var(--border);user-select:none;position:sticky;top:0}
-th:hover{background:#142235}
-th .sort-arrow{margin-left:4px;opacity:.4}
-th.sorted .sort-arrow{opacity:1}
-td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.04);white-space:nowrap;vertical-align:middle}
+/* ── TOOLBAR ── */
+.toolbar{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;align-items:center}
+.sbox{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 11px;border-radius:5px;font-family:inherit;font-size:13px;outline:none;flex:1;min-width:150px}
+.sbox:focus{border-color:var(--boost)}
+.pill{padding:5px 13px;border:1px solid var(--border);background:var(--bg2);color:var(--muted);border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;transition:.12s;white-space:nowrap;min-height:32px}
+.pill:hover{color:var(--text)}
+.pill.on{color:#000;background:var(--text);border-color:var(--text)}
+.pill.qb.on{background:var(--qb);border-color:var(--qb)}
+.pill.rb.on{background:var(--rb);border-color:var(--rb)}
+.pill.wr.on{background:var(--wr);border-color:var(--wr)}
+.pill.te.on{background:var(--te);border-color:var(--te)}
+.pill.idp.on{background:var(--idp);border-color:var(--idp);color:#000}
+.pill.gem.on{background:var(--gem);border-color:var(--gem)}
+.pill.bust-p.on{background:var(--bust);border-color:var(--bust)}
+.pill.boost.on{background:var(--boost);border-color:var(--boost)}
+.pill.low.on{background:#4CAF50;border-color:#4CAF50}
+.pill.mod.on{background:#FFD700;border-color:#FFD700}
+.pill.elv.on{background:#ff9f43;border-color:#ff9f43}
+.pill.high.on{background:#ff6b6b;border-color:#ff6b6b}
+select.sbox{cursor:pointer}
+
+/* ── TABLES ── */
+.tbl-wrap{overflow-x:auto;border-radius:7px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#0c1a2e;padding:9px 10px;text-align:left;font-weight:700;cursor:pointer;white-space:nowrap;border-bottom:1px solid var(--border);position:sticky;top:0;user-select:none}
+th:hover{background:#142338}
+th.srt{color:var(--active)}
+td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:var(--bg3)}
-tr.gem-row td:first-child{border-left:3px solid var(--gem)}
-tr.bust-row td:first-child{border-left:3px solid var(--bust)}
-tr.gem-row{background:rgba(76,175,80,0.06)}
-tr.bust-row{background:rgba(255,107,107,0.06)}
+tr:hover td{background:rgba(255,255,255,.03)}
+tr.gem-r td:first-child{border-left:3px solid var(--gem)}
+tr.gem-r{background:rgba(76,175,80,.05)}
+tr.bust-r td:first-child{border-left:3px solid var(--bust)}
+tr.bust-r{background:rgba(255,107,107,.05)}
 
-/* BADGES */
-.badge-pos{display:inline-block;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:700}
-.pos-QB{background:rgba(255,215,0,0.15);color:var(--qb)}
-.pos-RB{background:rgba(110,231,183,0.15);color:#6ee7b7}
-.pos-WR{background:rgba(0,180,216,0.15);color:var(--boost)}
-.pos-TE{background:rgba(192,132,252,0.15);color:#c084fc}
-.pos-EDGE,.pos-LB,.pos-DB,.pos-DL{background:rgba(255,159,67,0.15);color:var(--idp)}
-.badge-tier{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
-.tier-R1{background:rgba(255,215,0,.2);color:var(--qb)}
-.tier-R2{background:rgba(76,175,80,.2);color:var(--gem)}
-.tier-R3{background:rgba(76,175,80,.15);color:#81c784}
-.tier-R4{background:rgba(0,180,216,.15);color:var(--boost)}
-.tier-R5,.tier-R6{background:rgba(255,159,67,.15);color:var(--idp)}
-.tier-R7,.tier-R8,.tier-R9,.tier-R10{background:rgba(107,127,163,.15);color:var(--muted)}
-.badge-round{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--bg3);border:1px solid var(--border)}
-.gem-badge{color:var(--gem);font-weight:700}
-.bust-badge{color:var(--bust);font-weight:700}
-.boost-badge{background:rgba(0,180,216,.15);color:var(--boost);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
-.fade-badge{background:rgba(255,107,107,.15);color:var(--bust);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
-.neutral-badge{color:var(--muted);font-size:11px}
-.idp-tier-elite{background:rgba(255,159,67,.2);color:var(--idp);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
-.idp-tier-solid{background:rgba(76,175,80,.15);color:var(--gem);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
-.idp-tier-stash{background:rgba(0,180,216,.15);color:var(--boost);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
-.idp-tier-bust{background:rgba(255,107,107,.15);color:var(--bust);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+/* ── POS BADGES ── */
+.pb{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:700}
+.pb-QB{background:rgba(255,215,0,.15);color:var(--qb)}
+.pb-RB{background:rgba(29,209,161,.15);color:var(--rb)}
+.pb-WR{background:rgba(84,160,255,.15);color:var(--wr)}
+.pb-TE{background:rgba(243,104,224,.15);color:var(--te)}
+.pb-IDP,.pb-EDGE,.pb-LB,.pb-DB,.pb-DL,.pb-S,.pb-CB{background:rgba(255,159,67,.15);color:var(--idp)}
 
-/* FPPG bar */
-.fppg-bar{display:flex;align-items:center;gap:8px}
-.fppg-track{width:80px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
-.fppg-fill{height:100%;border-radius:3px;background:var(--idp)}
+/* ── SCORE BARS ── */
+.sbar-wrap{display:flex;align-items:center;gap:6px;font-size:12px}
+.sbar-track{height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;flex:1;min-width:40px}
+.sbar-fill{height:100%;border-radius:3px;transition:width .5s ease}
 
-/* SIM DRAFT */
-.sim-btn{padding:10px 24px;background:var(--boost);color:#000;border:none;border-radius:6px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;min-height:44px;transition:opacity .15s}
-.sim-btn:hover{opacity:.85}
-.sim-btn:disabled{opacity:.4;cursor:not-allowed}
-.sim-progress{margin:10px 0;font-size:12px;color:var(--muted)}
-.steal-icon{color:var(--gem);font-weight:700}
-.fade-icon{color:var(--bust);font-weight:700}
-
-/* LIVE TRACKER */
-.pick-area{width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:6px;font-family:inherit;font-size:13px;min-height:120px;resize:vertical;outline:none}
-.pick-area:focus{border-color:var(--boost)}
-.process-btn{padding:10px 20px;background:var(--gem);color:#000;border:none;border-radius:6px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;min-height:44px}
-.process-btn:hover{opacity:.85}
-.reset-btn{padding:10px 20px;background:var(--bg3);color:var(--bust);border:1px solid var(--bust);border-radius:6px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;min-height:44px}
-.roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin:16px 0}
-.roster-slot{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
-.roster-slot .slot-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.roster-slot .slot-player{font-size:13px;font-weight:600;min-height:20px}
-.slot-filled{border-color:var(--gem)!important;background:rgba(76,175,80,.06)!important}
-.needs-bar{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
-.need-pill{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border)}
-.need-met{background:rgba(76,175,80,.15);border-color:var(--gem);color:var(--gem)}
-.need-open{background:var(--bg2);color:var(--muted)}
-.alert-banner{background:rgba(255,107,107,.12);border:1px solid var(--bust);border-radius:6px;padding:12px 16px;margin:8px 0;font-size:13px;font-weight:600;color:var(--bust)}
-.alert-banner::before{content:"🚨 ALERT: ";font-weight:700}
-.pick-log{max-height:240px;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px}
-.pick-log-entry{padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
-.pick-log-entry:last-child{border-bottom:none}
-.pick-log-entry.my-pick{color:var(--gem);font-weight:700}
-
-/* SECTION LABELS */
-.section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px}
+/* ── CARDS ── */
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px}
-.stat-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
-.stat-row:last-child{border-bottom:none}
+.section-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:14px 0 7px}
 
-/* Vegas summary cards */
-.vegas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:16px}
-.vegas-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
-.vegas-card.boost{border-color:rgba(0,180,216,.4);background:rgba(0,180,216,.05)}
-.vegas-card.fade{border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.05)}
-.vegas-card .team-name{font-weight:700;font-size:13px}
-.vegas-card .win-total{font-size:20px;font-weight:700;margin:4px 0}
-.vegas-card.boost .win-total{color:var(--boost)}
-.vegas-card.fade .win-total{color:var(--bust)}
+/* ── SCORECARD (expandable) ── */
+.scorecard{background:#0d1827;border:1px solid rgba(0,180,216,.25);border-radius:7px;padding:14px;margin:3px 0 6px}
+.sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sc-metric{display:flex;align-items:center;gap:7px;padding:3px 0;font-size:12px}
+.sc-metric .lbl{color:var(--muted);width:90px;flex-shrink:0;font-size:11px}
+.sc-metric .val{font-weight:700;width:38px;text-align:right;flex-shrink:0}
 
-/* RESPONSIVE */
-@media(max-width:600px){
-  .header h1{font-size:14px}
-  .tab{padding:10px 12px;font-size:12px}
-  td,th{padding:8px 8px;font-size:12px}
-  .toolbar{gap:6px}
-  .filter-btn{padding:5px 10px;font-size:11px}
+/* ── ALERTS ── */
+.alert{background:rgba(255,107,107,.1);border:1px solid var(--bust);border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:12px;font-weight:700;color:var(--bust)}
+.alert::before{content:"🚨 "}
+.info{background:rgba(0,180,216,.08);border:1px solid rgba(0,180,216,.3);border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:12px}
+
+/* ── LIVE DRAFT ── */
+.draft-grid{display:grid;grid-template-columns:3fr 2fr;gap:14px}
+.pick-area{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:6px;font-family:inherit;font-size:12px;min-height:110px;resize:vertical;outline:none}
+.pick-area:focus{border-color:var(--boost)}
+.btn{padding:9px 18px;border:none;border-radius:5px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;min-height:38px;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-go{background:var(--gem);color:#000}
+.btn-undo{background:var(--bg3);color:var(--wr);border:1px solid var(--wr)}
+.btn-reset{background:var(--bg3);color:var(--bust);border:1px solid var(--bust)}
+.roster-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+.rslot{background:var(--bg3);border:1px dashed var(--border);border-radius:5px;padding:7px 9px;font-size:11px}
+.rslot .sl{color:var(--muted);font-size:9px;text-transform:uppercase}
+.rslot.filled{border-style:solid;border-color:var(--gem);background:rgba(76,175,80,.07)}
+.rslot.filled .sp{font-weight:700;font-size:12px}
+.needs-bar{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.need-pill{padding:3px 11px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border)}
+.need-open{color:var(--muted);background:var(--bg2)}
+.need-met{color:var(--gem);border-color:var(--gem);background:rgba(76,175,80,.1)}
+.pick-log{max-height:200px;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:6px;font-size:11px}
+.pl-row{padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.03)}
+.pl-row.me{color:var(--gem);font-weight:700}
+.avail-card{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:8px 10px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center}
+.avail-card.falling{border-color:var(--bust);background:rgba(255,107,107,.06)}
+
+/* ── IDP top cards ── */
+.idp-top{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.idp-hero{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.idp-fppg{font-size:28px;font-weight:700;color:var(--idp)}
+
+/* ── VORP chart ── */
+.pos-tabs{display:flex;gap:6px;margin-bottom:12px}
+.chart-wrap{position:relative;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:10px;margin-bottom:14px}
+canvas{display:block;width:100%}
+.chart-tooltip{position:absolute;background:#1a2a40;border:1px solid var(--border);border-radius:5px;padding:6px 10px;font-size:11px;pointer-events:none;display:none;z-index:10;white-space:nowrap}
+
+/* ── Round guide ── */
+details{background:var(--bg2);border:1px solid var(--border);border-radius:7px;margin-bottom:8px;overflow:hidden}
+summary{padding:12px 14px;cursor:pointer;font-weight:700;font-size:13px;list-style:none;display:flex;justify-content:space-between;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"▼";font-size:10px;color:var(--muted);transition:transform .2s}
+details[open] summary::after{transform:rotate(180deg)}
+.round-body{padding:0 14px 14px}
+.rnd-pills{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.gem-pill{background:rgba(76,175,80,.12);border:1px solid rgba(76,175,80,.3);color:var(--gem);padding:4px 10px;border-radius:4px;font-size:11px}
+.bust-pill{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.25);color:var(--bust);padding:4px 10px;border-radius:4px;font-size:11px}
+.phase-badge{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700}
+.phase-safe{background:rgba(76,175,80,.2);color:var(--gem)}
+.phase-ceil{background:rgba(255,215,0,.15);color:var(--qb)}
+.phase-taxi{background:rgba(107,127,163,.2);color:var(--muted)}
+
+/* ── Vegas cards ── */
+.vegas-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:14px}
+.vcard{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center}
+.vcard.boost{border-color:rgba(0,180,216,.4);background:rgba(0,180,216,.06)}
+.vcard.fade{border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.06)}
+.vwt{font-size:22px;font-weight:700}
+.vcard.boost .vwt{color:var(--boost)}
+.vcard.fade .vwt{color:var(--bust)}
+
+/* ── Injury layout ── */
+.inj-layout{display:grid;grid-template-columns:1fr 300px;gap:14px}
+.safe-core-card{background:rgba(76,175,80,.06);border:1px solid rgba(76,175,80,.2);border-radius:6px;padding:8px 11px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+
+/* ── Misc ── */
+.rnd-badge{display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;background:var(--bg3);border:1px solid var(--border)}
+.cliff-card{background:var(--bg2);border-radius:7px;padding:12px;margin-bottom:8px}
+.wr-banner{border-radius:6px;padding:11px 14px;font-size:13px;font-weight:700;margin-bottom:12px}
+.trade-note{background:rgba(255,159,67,.08);border:1px solid rgba(255,159,67,.3);border-radius:6px;padding:9px 13px;margin-bottom:8px;font-size:12px;color:var(--idp)}
+
+@media(max-width:768px){
+  .sc-grid,.draft-grid,.inj-layout{grid-template-columns:1fr!important}
+  .idp-top{grid-template-columns:1fr 1fr}
+  .stat-card .value{font-size:18px}
+  .nav-tab{padding:10px 11px;font-size:11px}
 }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>⚡ 2026 DYNASTY SF DRAFT</h1>
-  <span class="badge">SUPERFLEX · TE PREM · IDP</span>
-  <span class="trade-note">🔄 Garrett→LAR · Verse→CLE (June 2, 2026)</span>
-</div>
+<!-- NAV -->
+<nav class="nav" id="nav">
+  <div class="nav-tab active" onclick="go('master')">🏆 Master Board</div>
+  <div class="nav-tab" onclick="go('vorp')">📉 VORP &amp; Cliffs</div>
+  <div class="nav-tab" onclick="go('injury')">🩹 Injury &amp; Risk</div>
+  <div class="nav-tab" onclick="go('idp')">🏈 IDP Board</div>
+  <div class="nav-tab" onclick="go('vegas')">⚡ Vegas Overlay</div>
+  <div class="nav-tab" onclick="go('rounds')">📋 Round Guide</div>
+  <div class="nav-tab" onclick="go('draft')">🎯 Live Draft</div>
+</nav>
 
-<div class="tabs">
-  <div class="tab active" onclick="switchTab('draft')">📋 Draft Board</div>
-  <div class="tab" onclick="switchTab('sim')">🎲 Sim Draft</div>
-  <div class="tab" onclick="switchTab('idp')">🛡 IDP Board</div>
-  <div class="tab" onclick="switchTab('vegas')">🎰 Vegas Overlay</div>
-  <div class="tab" onclick="switchTab('vorp')">📉 VORP &amp; Cliffs</div>
-  <div class="tab" onclick="switchTab('injury')">🩹 Injury &amp; Risk</div>
-  <div class="tab" onclick="switchTab('tracker')">🔴 Live Tracker</div>
-</div>
-
-<!-- ═══════════════════════════ DRAFT BOARD ═══════════════════════════ -->
-<div id="tab-draft" class="tab-content active">
+<!-- ═══════ TAB 1: MASTER BOARD ═══════ -->
+<div id="panel-master" class="panel active">
+  <div class="stat-row" id="statCards"></div>
   <div class="toolbar">
-    <input class="search-box" id="boardSearch" placeholder="Search player…" oninput="filterBoard()">
-    <button class="filter-btn ALL active" onclick="setPosFilter('ALL',this)">ALL</button>
-    <button class="filter-btn QB" onclick="setPosFilter('QB',this)">QB</button>
-    <button class="filter-btn RB" onclick="setPosFilter('RB',this)">RB</button>
-    <button class="filter-btn WR" onclick="setPosFilter('WR',this)">WR</button>
-    <button class="filter-btn TE" onclick="setPosFilter('TE',this)">TE</button>
-    <button class="filter-btn IDP" onclick="setPosFilter('IDP',this)">IDP</button>
+    <input class="sbox" id="boardQ" placeholder="Search player…" oninput="renderBoard()">
+    <select class="sbox" style="flex:0;min-width:160px" id="boardSort" onchange="renderBoard()">
+      <option value="master_score">⭐ Master Score</option>
+      <option value="my_rank">My Rank</option>
+      <option value="proj_pts_2026">Proj Pts</option>
+      <option value="vorp_adjusted">VORP</option>
+      <option value="ceiling_score">Ceiling</option>
+      <option value="floor_score_v2">Floor v2</option>
+      <option value="injury_risk_score">Inj Risk ↑</option>
+      <option value="future_value">Future Value</option>
+    </select>
   </div>
-  <div class="table-wrap">
-    <table id="boardTable">
-      <thead>
-        <tr>
-          <th onclick="sortBoard('my_rank')" data-col="my_rank">Rank<span class="sort-arrow">▼</span></th>
-          <th onclick="sortBoard('master_score')" data-col="master_score">⭐<span class="sort-arrow">▼</span></th>
-          <th onclick="sortBoard('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
-          <th onclick="sortBoard('pos')" data-col="pos">Pos<span class="sort-arrow">▼</span></th>
-          <th onclick="sortBoard('team')" data-col="team">Team<span class="sort-arrow">▼</span></th>
-          <th onclick="sortBoard('age')" data-col="age">Age<span class="sort-arrow">▼</span></th>
-          <th onclick="sortBoard('consensus_rank')" data-col="consensus_rank">Con.<span class="sort-arrow">▼</span></th>
-          <th onclick="sortBoard('value_gap')" data-col="value_gap">Gap<span class="sort-arrow">▼</span></th>
-          <th onclick="sortBoard('injury_risk_score')" data-col="injury_risk_score">🩹<span class="sort-arrow">▼</span></th>
-          <th onclick="sortBoard('target_round')" data-col="target_round">Target<span class="sort-arrow">▼</span></th>
-          <th>Tier</th>
-          <th>Flag</th>
-          <th>Notes</th>
-        </tr>
-      </thead>
+  <div class="toolbar">
+    <span class="pill on" id="bp-ALL" onclick="setBPill('ALL',this)">ALL</span>
+    <span class="pill qb" id="bp-QB" onclick="setBPill('QB',this)">QB</span>
+    <span class="pill rb" id="bp-RB" onclick="setBPill('RB',this)">RB</span>
+    <span class="pill wr" id="bp-WR" onclick="setBPill('WR',this)">WR</span>
+    <span class="pill te" id="bp-TE" onclick="setBPill('TE',this)">TE</span>
+    <span class="pill idp" id="bp-IDP" onclick="setBPill('IDP',this)">IDP</span>
+    <span class="pill gem" id="bp-GEM" onclick="setBToggle('GEM',this)" style="margin-left:8px">💎 Gems</span>
+    <span class="pill low" id="bp-SAFE" onclick="setBToggle('SAFE',this)">🟢 Safe Only</span>
+    <span class="pill" id="bp-CEIL" onclick="setBToggle('CEIL',this)" style="border-color:var(--qb)">🎰 Ceiling≥80</span>
+  </div>
+  <div class="tbl-wrap">
+    <table id="boardTbl">
+      <thead><tr>
+        <th onclick="setBSort('my_rank')">Rank<span id="bs-my_rank"></span></th>
+        <th onclick="setBSort('master_score')">⭐<span id="bs-master_score"> ▼</span></th>
+        <th onclick="setBSort('player')">Player<span id="bs-player"></span></th>
+        <th>Pos</th><th>Team</th>
+        <th onclick="setBSort('age')">Age<span id="bs-age"></span></th>
+        <th onclick="setBSort('proj_pts_2026')">Proj<span id="bs-proj_pts_2026"></span></th>
+        <th onclick="setBSort('vorp_adjusted')">VORP<span id="bs-vorp_adjusted"></span></th>
+        <th onclick="setBSort('ceiling_score')">Ceil<span id="bs-ceiling_score"></span></th>
+        <th onclick="setBSort('floor_score_v2')">Floor<span id="bs-floor_score_v2"></span></th>
+        <th onclick="setBSort('injury_risk_score')">🩹<span id="bs-injury_risk_score"></span></th>
+        <th onclick="setBSort('target_round')">Tgt<span id="bs-target_round"></span></th>
+        <th>Flag</th>
+      </tr></thead>
       <tbody id="boardBody"></tbody>
     </table>
   </div>
-  <div class="section-label" style="margin-top:12px" id="boardCount"></div>
+  <div style="font-size:11px;color:var(--muted);margin-top:8px" id="boardCount"></div>
 </div>
 
-<!-- ═══════════════════════════ SIM DRAFT ═══════════════════════════ -->
-<div id="tab-sim" class="tab-content">
-  <div class="card" style="margin-bottom:16px">
-    <div style="font-size:13px;color:var(--muted);margin-bottom:12px">
-      Runs 100 simulated 10-team drafts using each player's ADP ± gaussian variance (~1 round σ). Identifies steals and overdrafted players.
-    </div>
-    <div class="toolbar">
-      <button class="sim-btn" id="simBtn" onclick="runSims()">▶ Run 100 Sims</button>
-      <span class="sim-progress" id="simStatus"></span>
-    </div>
+<!-- ═══════ TAB 2: VORP & CLIFFS ═══════ -->
+<div id="panel-vorp" class="panel">
+  <div class="toolbar" id="vorpPosTabs">
+    <span class="pill qb on" onclick="setVPos('QB',this)">QB</span>
+    <span class="pill rb" onclick="setVPos('RB',this)">RB</span>
+    <span class="pill wr" onclick="setVPos('WR',this)">WR</span>
+    <span class="pill te" onclick="setVPos('TE',this)">TE</span>
+    <span class="pill" id="qb2adj" onclick="toggleQB2(this)" style="margin-left:10px;display:none">⚡ 2QB Adj</span>
   </div>
-  <div class="table-wrap">
-    <table id="simTable">
-      <thead>
-        <tr>
-          <th onclick="sortSim('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
-          <th onclick="sortSim('pos')" data-col="pos">Pos<span class="sort-arrow">▼</span></th>
-          <th onclick="sortSim('adp')" data-col="adp">ADP<span class="sort-arrow">▼</span></th>
-          <th onclick="sortSim('avgPick')" data-col="avgPick">Avg Pick<span class="sort-arrow">▼</span></th>
-          <th onclick="sortSim('earliest')" data-col="earliest">Earliest<span class="sort-arrow">▼</span></th>
-          <th onclick="sortSim('latest')" data-col="latest">Latest<span class="sort-arrow">▼</span></th>
-          <th onclick="sortSim('pctOwned')" data-col="pctOwned">% Owned<span class="sort-arrow">▼</span></th>
-          <th>Signal</th>
-        </tr>
-      </thead>
-      <tbody id="simBody"></tbody>
-    </table>
+  <div class="chart-wrap">
+    <canvas id="vorpCanvas" height="200"></canvas>
+    <div class="chart-tooltip" id="vorpTip"></div>
   </div>
-</div>
-
-<!-- ═══════════════════════════ IDP BOARD ═══════════════════════════ -->
-<div id="tab-idp" class="tab-content">
-  <div class="toolbar">
-    <input class="search-box" id="idpSearch" placeholder="Search IDP…" oninput="renderIDP()">
-    <button class="filter-btn active" onclick="setIDPFilter('ALL',this)" style="background:var(--idp);color:#000">ALL</button>
-    <button class="filter-btn" onclick="setIDPFilter('EDGE',this)">EDGE</button>
-    <button class="filter-btn" onclick="setIDPFilter('LB',this)">LB</button>
-    <button class="filter-btn" onclick="setIDPFilter('DB',this)">DB</button>
-  </div>
-  <div class="table-wrap">
-    <table id="idpTable">
-      <thead>
-        <tr>
-          <th onclick="sortIDP('proj_fppg')" data-col="proj_fppg">FPPG<span class="sort-arrow">▼</span></th>
-          <th onclick="sortIDP('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
-          <th onclick="sortIDP('pos')" data-col="pos">Pos<span class="sort-arrow">▼</span></th>
-          <th onclick="sortIDP('team')" data-col="team">Team<span class="sort-arrow">▼</span></th>
-          <th onclick="sortIDP('age')" data-col="age">Age<span class="sort-arrow">▼</span></th>
-          <th onclick="sortIDP('proj_sacks')" data-col="proj_sacks">Sacks<span class="sort-arrow">▼</span></th>
-          <th onclick="sortIDP('proj_solo_tackles')" data-col="proj_solo_tackles">Solo<span class="sort-arrow">▼</span></th>
-          <th onclick="sortIDP('proj_ints')" data-col="proj_ints">INT<span class="sort-arrow">▼</span></th>
-          <th onclick="sortIDP('proj_tfl')" data-col="proj_tfl">TFL<span class="sort-arrow">▼</span></th>
-          <th onclick="sortIDP('draft_round_target')" data-col="draft_round_target">Target<span class="sort-arrow">▼</span></th>
-          <th>Tier</th>
-        </tr>
-      </thead>
-      <tbody id="idpBody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ═══════════════════════════ VEGAS OVERLAY ═══════════════════════════ -->
-<div id="tab-vegas" class="tab-content">
-  <div id="vegasTeamCards" class="vegas-grid"></div>
-  <div class="section-label">All Players by Vegas Context</div>
-  <div class="toolbar">
-    <input class="search-box" id="vegasSearch" placeholder="Search player…" oninput="renderVegas()">
-    <button class="filter-btn active" onclick="setVegasFilter('ALL',this)">ALL</button>
-    <button class="filter-btn" onclick="setVegasFilter('BOOST',this)" style="border-color:var(--boost)">🚀 BOOST</button>
-    <button class="filter-btn" onclick="setVegasFilter('FADE',this)" style="border-color:var(--bust)">📉 FADE</button>
-    <button class="filter-btn" onclick="setVegasFilter('NEUTRAL',this)">NEUTRAL</button>
-  </div>
-  <div class="table-wrap">
-    <table id="vegasTable">
-      <thead>
-        <tr>
-          <th onclick="sortVegas('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
-          <th onclick="sortVegas('team')" data-col="team">Team<span class="sort-arrow">▼</span></th>
-          <th onclick="sortVegas('win_total')" data-col="win_total">Wins O/U<span class="sort-arrow">▼</span></th>
-          <th onclick="sortVegas('vegas_flag')" data-col="vegas_flag">Signal<span class="sort-arrow">▼</span></th>
-          <th>Context</th>
-        </tr>
-      </thead>
-      <tbody id="vegasBody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ═══════════════════════════ VORP & CLIFFS ════════════════════════════ -->
-<div id="tab-vorp" class="tab-content">
-
-  <!-- S1: Cliff Charts -->
-  <div class="section-label" style="margin-top:0">Positional Cliff Charts</div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:20px">
-    <div class="card"><div style="font-size:12px;font-weight:700;color:var(--qb);margin-bottom:8px">QB VORP (2QB Adjusted)</div><canvas id="chart-qb" height="160"></canvas></div>
-    <div class="card"><div style="font-size:12px;font-weight:700;color:#6ee7b7;margin-bottom:8px">RB VORP</div><canvas id="chart-rb" height="160"></canvas></div>
-    <div class="card"><div style="font-size:12px;font-weight:700;color:var(--boost);margin-bottom:8px">WR VORP</div><canvas id="chart-wr" height="160"></canvas></div>
-    <div class="card"><div style="font-size:12px;font-weight:700;color:#c084fc;margin-bottom:8px">TE VORP (TEP Adjusted)</div><canvas id="chart-te" height="160"></canvas></div>
-  </div>
-
-  <!-- S2: VORP Comparison Table -->
-  <div class="section-label">VORP Comparison Table</div>
-  <div class="toolbar">
-    <input class="search-box" id="vorpSearch" placeholder="Search player…" oninput="renderVORPTable()">
-    <button class="filter-btn active" onclick="setVORPFilter('ALL',this)">ALL</button>
-    <button class="filter-btn QB" onclick="setVORPFilter('QB',this)">QB</button>
-    <button class="filter-btn RB" onclick="setVORPFilter('RB',this)">RB</button>
-    <button class="filter-btn WR" onclick="setVORPFilter('WR',this)">WR</button>
-    <button class="filter-btn TE" onclick="setVORPFilter('TE',this)">TE</button>
-  </div>
-  <div class="table-wrap" style="margin-bottom:20px">
-    <table id="vorpTable">
+  <div id="vorpCards"></div>
+  <div id="wrBanner"></div>
+  <div class="tbl-wrap" style="margin-top:12px">
+    <table id="vorpTbl">
       <thead><tr>
-        <th onclick="sortVORP('vorp_rank')" data-col="vorp_rank">Pos Rank<span class="sort-arrow">▼</span></th>
-        <th onclick="sortVORP('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
-        <th onclick="sortVORP('pos')" data-col="pos">Pos<span class="sort-arrow">▼</span></th>
-        <th onclick="sortVORP('team')" data-col="team">Team<span class="sort-arrow">▼</span></th>
-        <th onclick="sortVORP('vorp_raw')" data-col="vorp_raw">VORP Raw<span class="sort-arrow">▼</span></th>
-        <th onclick="sortVORP('vorp_adjusted')" data-col="vorp_adjusted">VORP Adj<span class="sort-arrow">▼</span></th>
-        <th onclick="sortVORP('vorp_2qb_adjusted')" data-col="vorp_2qb_adjusted">2QB VORP<span class="sort-arrow">▼</span></th>
-        <th onclick="sortVORP('drop_to_next')" data-col="drop_to_next">→ Next<span class="sort-arrow">▼</span></th>
+        <th onclick="sortVorp('vorp_rank')">Pos Rank</th>
+        <th onclick="sortVorp('player')">Player</th>
+        <th>Team</th>
+        <th onclick="sortVorp('vorp_raw')">Raw</th>
+        <th onclick="sortVorp('vorp_adjusted')">Adj</th>
+        <th onclick="sortVorp('vorp_2qb_adjusted')">2QB</th>
+        <th onclick="sortVorp('drop_to_next')">Drop→Next</th>
+        <th onclick="sortVorp('drop_pct')">Drop%</th>
         <th>Cliff</th>
       </tr></thead>
       <tbody id="vorpBody"></tbody>
     </table>
   </div>
-
-  <!-- S3: Insight Cards -->
-  <div class="section-label">Draft Trigger Cards — "Draft Now or Never" Signals</div>
-  <div id="cliffCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:20px"></div>
-
-  <!-- S4: WR Depth Banner -->
-  <div class="section-label">WR Depth Confirmation</div>
-  <div id="wrDepthBanner" style="margin-bottom:12px"></div>
-  <div class="table-wrap" style="margin-bottom:20px">
-    <table id="wrDepthTable">
-      <thead><tr><th>WR Rank</th><th>Player</th><th>Team</th><th>VORP</th><th>Drop to Next</th></tr></thead>
-      <tbody id="wrDepthBody"></tbody>
-    </table>
-  </div>
-
-  <!-- S5: Strategy Validator -->
-  <div class="section-label">My Draft Strategy VORP Validator</div>
-  <div class="card">
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
-      Enter your expected draft strategy by round. Format: <code>QB WR RB TE RB WR IDP IDP QB WR</code> (one position per round, space-separated)
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-      <input class="search-box" id="stratInput" placeholder="QB WR RB TE RB WR IDP IDP QB WR" style="flex:1;min-width:220px">
-      <button class="sim-btn" onclick="validateStrategy()" style="min-width:120px">⚡ Validate</button>
-    </div>
-    <div id="stratResult"></div>
-  </div>
-
 </div>
 
-<!-- ═══════════════════════════ INJURY & RISK ════════════════════════════ -->
-<div id="tab-injury" class="tab-content">
-
-  <div id="injuryWarningBanner" style="margin-bottom:14px"></div>
-
-  <div style="display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start" class="injury-layout">
-
-    <!-- Left: Risk heat map table -->
+<!-- ═══════ TAB 3: INJURY & RISK ═══════ -->
+<div id="panel-injury" class="panel">
+  <div id="injBanner"></div>
+  <div class="toolbar">
+    <span class="pill on" id="rp-ALL" onclick="setRPill('ALL',this)">All</span>
+    <span class="pill low" id="rp-LOW" onclick="setRPill('LOW',this)">🟢 Low</span>
+    <span class="pill mod" id="rp-MOD" onclick="setRPill('MOD',this)">🟡 Mod</span>
+    <span class="pill elv" id="rp-ELV" onclick="setRPill('ELV',this)">🟠 Elevated</span>
+    <span class="pill high" id="rp-HIGH" onclick="setRPill('HIGH',this)">🔴 High+</span>
+  </div>
+  <div class="inj-layout">
     <div>
-      <div class="section-label" style="margin-top:0">Risk Heat Map</div>
-      <div class="toolbar">
-        <button class="filter-btn active" onclick="setRiskFilter('ALL',this)">ALL</button>
-        <button class="filter-btn" onclick="setRiskFilter('LOW',this)" style="border-color:#4CAF50">🟢 Low</button>
-        <button class="filter-btn" onclick="setRiskFilter('MODERATE',this)" style="border-color:#FFD700">🟡 Moderate</button>
-        <button class="filter-btn" onclick="setRiskFilter('ELEVATED',this)" style="border-color:#ff9f43">🟠 Elevated</button>
-        <button class="filter-btn" onclick="setRiskFilter('HIGH',this)" style="border-color:#ff6b6b">🔴 High+</button>
-        <button class="filter-btn" onclick="sortInjury('master_score')" style="margin-left:auto">Sort: ⭐ Master</button>
-        <button class="filter-btn" onclick="sortInjury('injury_risk_score')">Sort: 🩹 Risk</button>
-      </div>
-      <div class="table-wrap">
-        <table id="injuryTable">
+      <div class="tbl-wrap">
+        <table id="injTbl">
           <thead><tr>
-            <th onclick="sortInjury('player')" data-col="player">Player<span class="sort-arrow">▼</span></th>
-            <th onclick="sortInjury('pos')" data-col="pos">Pos<span class="sort-arrow">▼</span></th>
-            <th onclick="sortInjury('injury_risk_score')" data-col="injury_risk_score">Risk<span class="sort-arrow">▼</span></th>
+            <th onclick="sortInj('player')">Player</th>
+            <th>Pos</th><th>Team</th>
+            <th onclick="sortInj('injury_risk_score')">🩹 Risk ▼</th>
             <th>Tier</th>
-            <th onclick="sortInjury('games_missed_2025')" data-col="games_missed_2025">2025<span class="sort-arrow">▼</span></th>
-            <th onclick="sortInjury('games_missed_2024')" data-col="games_missed_2024">2024<span class="sort-arrow">▼</span></th>
+            <th onclick="sortInj('games_missed_2025')">2025</th>
+            <th onclick="sortInj('games_missed_2024')">2024</th>
             <th>Injury History</th>
-            <th onclick="sortInjury('master_score')" data-col="master_score">⭐ Master<span class="sort-arrow">▼</span></th>
+            <th onclick="sortInj('master_score')">⭐</th>
           </tr></thead>
-          <tbody id="injuryBody"></tbody>
+          <tbody id="injBody"></tbody>
         </table>
       </div>
     </div>
-
-    <!-- Right: Safe Core panel -->
     <div>
-      <div class="section-label" style="margin-top:0">🛡 Safe Core — R1–R4 Targets</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Risk ≤ 3.0 AND Floor ≥ 65. Sorted by master score.</div>
+      <div class="section-lbl">🛡 Safe Core — R1–R4 Candidates</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Risk ≤ 3.0 AND Floor ≥ 65 · sorted by master score</div>
       <div id="safeCoreList"></div>
     </div>
-
   </div>
-
 </div>
-<style>
-@media(max-width:700px){.injury-layout{grid-template-columns:1fr!important}}
-</style>
 
-<!-- ═══════════════════════════ LIVE TRACKER ═══════════════════════════ -->
-<div id="tab-tracker" class="tab-content">
-  <div id="alertContainer"></div>
-
-  <div class="card" style="margin-bottom:12px">
-    <div class="section-label" style="margin-top:0">Paste Picks</div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
-      Format: <code>1.03 Ja'Marr Chase WR CIN [me]</code> — use [me] or [ME] for your picks. Paste multiple lines at once.
-    </div>
-    <textarea class="pick-area" id="pickInput" placeholder="1.01 Josh Allen QB BUF [Team Alpha]&#10;1.02 Drake Maye QB NE [Team Beta]&#10;1.03 Ja'Marr Chase WR CIN [me]"></textarea>
-    <div class="toolbar" style="margin-top:10px">
-      <button class="process-btn" onclick="processPicks()">⚡ Process Picks</button>
-      <button class="reset-btn" onclick="resetTracker()">↺ Reset Draft</button>
-    </div>
+<!-- ═══════ TAB 4: IDP BOARD ═══════ -->
+<div id="panel-idp" class="panel">
+  <div class="trade-note">🔄 <strong>Myles Garrett → LAR</strong> (June 2026) | Elite McVay scheme, SB contender context | FPPG updated in model</div>
+  <div class="trade-note">🔄 <strong>Jared Verse → CLE</strong> (received in Garrett trade) | Alpha EDGE in CLE, undervalued | 💎 GEM flag maintained</div>
+  <div class="toolbar">
+    <input class="sbox" id="idpQ" placeholder="Search IDP…" oninput="renderIDP()">
+    <span class="pill idp on" id="ip-ALL" onclick="setIPill('ALL',this)">All IDP</span>
+    <span class="pill" id="ip-EDGE" onclick="setIPill('EDGE',this)">EDGE</span>
+    <span class="pill" id="ip-LB" onclick="setIPill('LB',this)">LB</span>
+    <span class="pill" id="ip-DB" onclick="setIPill('DB',this)">DB</span>
   </div>
-
-  <div class="section-label">Roster Needs</div>
-  <div class="needs-bar" id="needsBar"></div>
-
-  <div class="section-label">My Roster</div>
-  <div class="roster-grid" id="rosterGrid"></div>
-
-  <div class="section-label">Pick Log</div>
-  <div class="pick-log" id="pickLog"></div>
-
-  <div class="section-label" style="margin-top:16px">Best Available (Top 20 Remaining)</div>
-  <div class="table-wrap">
-    <table id="availTable">
-      <thead>
-        <tr>
-          <th>Rank</th><th>Player</th><th>Pos</th><th>Team</th><th>Age</th><th>Target</th><th>Flag</th>
-        </tr>
-      </thead>
-      <tbody id="availBody"></tbody>
+  <div class="idp-top" id="idpTop"></div>
+  <div class="tbl-wrap">
+    <table id="idpTbl">
+      <thead><tr>
+        <th onclick="sortIDP('proj_fppg')">FPPG ▼</th>
+        <th onclick="sortIDP('player')">Player</th>
+        <th>Pos</th><th>Team</th>
+        <th onclick="sortIDP('age')">Age</th>
+        <th onclick="sortIDP('proj_sacks')">Sacks</th>
+        <th onclick="sortIDP('proj_solo_tackles')">Solo</th>
+        <th onclick="sortIDP('proj_ints')">INT</th>
+        <th onclick="sortIDP('proj_tfl')">TFL</th>
+        <th onclick="sortIDP('draft_round_target')">Target</th>
+        <th>Tier</th>
+      </tr></thead>
+      <tbody id="idpBody"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- ═══════ TAB 5: VEGAS OVERLAY ═══════ -->
+<div id="panel-vegas" class="panel">
+  <div class="toolbar">
+    <input class="sbox" id="vegQ" placeholder="Search player or team…" oninput="renderVegas()">
+    <span class="pill on" id="vp-ALL" onclick="setVPill('ALL',this)">All</span>
+    <span class="pill boost" id="vp-BOOST" onclick="setVPill('BOOST',this)">🚀 BOOST</span>
+    <span class="pill bust-p" id="vp-FADE" onclick="setVPill('FADE',this)">📉 FADE</span>
+    <span class="pill" id="vp-NEU" onclick="setVPill('NEUTRAL',this)">NEUTRAL</span>
+  </div>
+  <div id="vegasCards" class="vegas-cards"></div>
+  <div class="tbl-wrap">
+    <table id="vegasTbl">
+      <thead><tr>
+        <th onclick="sortVegas('player')">Player</th>
+        <th>Pos</th>
+        <th onclick="sortVegas('team')">Team</th>
+        <th onclick="sortVegas('win_total')">Win Total ▼</th>
+        <th onclick="sortVegas('vegas_flag')">Signal</th>
+        <th>Context</th>
+      </tr></thead>
+      <tbody id="vegasBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════ TAB 6: ROUND GUIDE ═══════ -->
+<div id="panel-rounds" class="panel">
+  <div id="roundsContent"></div>
+</div>
+
+<!-- ═══════ TAB 7: LIVE DRAFT ═══════ -->
+<div id="panel-draft" class="panel">
+  <div id="draftAlerts"></div>
+  <div class="draft-grid">
+    <div>
+      <div class="section-lbl" style="margin-top:0">Paste Picks</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px">Format: <code>1.03 Ja'Marr Chase WR CIN [me]</code> — use [me] for your picks. Paste multiple lines.</div>
+      <textarea class="pick-area" id="pickInput" placeholder="1.01 Josh Allen QB BUF [Team Alpha]&#10;1.02 Drake Maye QB NE [Team Beta]&#10;1.03 Ja'Marr Chase WR CIN [me]"></textarea>
+      <div class="toolbar" style="margin-top:8px">
+        <button class="btn btn-go" onclick="processPicks()">▶ Process Picks</button>
+        <button class="btn btn-undo" onclick="undoLast()">↩ Undo</button>
+        <button class="btn btn-reset" onclick="resetDraft()">🔄 Reset</button>
+      </div>
+      <div class="section-lbl">Pick Log</div>
+      <div class="pick-log" id="pickLog"></div>
+    </div>
+    <div>
+      <div class="section-lbl" style="margin-top:0">Needs</div>
+      <div class="needs-bar" id="needsBar"></div>
+      <div class="section-lbl">My Roster</div>
+      <div class="roster-grid" id="rosterGrid"></div>
+      <div class="section-lbl">Best Available (Top 5)</div>
+      <div id="availPanel"></div>
+    </div>
   </div>
 </div>
 
@@ -475,1280 +409,877 @@ tr.bust-row{background:rgba(255,107,107,0.06)}
 // ═══════════════════════════════════════════════════════════
 // DATA LAYER
 // ═══════════════════════════════════════════════════════════
-let boardData = [], idpData = [], vegasData = [];
-let boardSort = {col:'my_rank', dir:1};
-let idpSort   = {col:'proj_fppg', dir:-1};
-let vegasSort = {col:'win_total', dir:-1};
-let simSort   = {col:'avgPick', dir:1};
-let posFilter = 'ALL', idpFilter = 'ALL', vegasFilter = 'ALL';
-let simResults = [];
-let draftState = {
-  allPicks: [],
-  myPicks: [],
-  drafted: new Set(),
-  myRoster: {QB:[],RB:[],WR:[],TE:[],EDGE:[],LB:[],DB:[],DL:[],K:[],FLEX:[]},
-  pickNumber: 0
-};
+let board=[], idpData=[], vegasData=[], vorpData=[], roundMD='';
+let _renderedTabs = new Set(['master']);
 
-function parseCSV(text) {
+async function parseCSV(text){
   const lines = text.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.trim());
-  return lines.slice(1).map(line => {
-    const vals = [];
-    let cur = '', inQ = false;
-    for (const c of line) {
-      if (c === '"') { inQ = !inQ; }
-      else if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
-      else cur += c;
+  const hdr = lines[0].split(',').map(h=>h.trim().replace(/"/g,''));
+  return lines.slice(1).map(line=>{
+    const vals=[]; let cur='', inQ=false;
+    for(const c of line){
+      if(c==='"'){inQ=!inQ;}
+      else if(c===','&&!inQ){vals.push(cur.trim());cur='';}
+      else cur+=c;
     }
     vals.push(cur.trim());
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = vals[i] !== undefined ? vals[i] : '');
-    return obj;
+    const o={};
+    hdr.forEach((h,i)=>o[h]=vals[i]!==undefined?vals[i].replace(/^"|"$/g,''):'');
+    return o;
   });
 }
 
-async function loadCSV(path) {
-  try {
-    const r = await fetch(path + '?v=' + Date.now());
-    if (!r.ok) return [];
-    return parseCSV(await r.text());
-  } catch(e) { return []; }
+async function loadCSV(p){
+  try{ const r=await fetch(p+'?v='+Date.now()); if(!r.ok)return []; return parseCSV(await r.text()); }
+  catch(e){return [];}
 }
 
-let vorpData = [];
-let injurySort  = {col:'injury_risk_score', dir:-1};
-let riskFilter  = 'ALL';
-let vorpSort = {col:'vorp_raw', dir:-1};
-let vorpPosFilter = 'ALL';
+function n(v){return v===''||v===undefined||v===null?0:+v||0;}
+function isIDP(pos){return ['EDGE','LB','DB','DL','S','CB','DE','DT'].includes((pos||'').toUpperCase());}
+function posClass(pos){return isIDP(pos)?'pb-IDP':`pb-${pos}`;}
+function posBadge(pos){return `<span class="pb ${posClass(pos)}">${pos}</span>`;}
 
-async function init() {
-  [boardData, idpData, vegasData, vorpData] = await Promise.all([
-    loadCSV('draft_board.csv'),
-    loadCSV('idp_model.csv'),
-    loadCSV('vegas_overlay.csv'),
-    loadCSV('vorp_data.csv')
+async function init(){
+  [board, idpData, vegasData, vorpData] = await Promise.all([
+    loadCSV('draft_board.csv'), loadCSV('idp_model.csv'),
+    loadCSV('vegas_overlay.csv'), loadCSV('vorp_data.csv')
   ]);
-  // Coerce numbers
-  boardData.forEach(p => {
-    p.my_rank = +p.my_rank || 999;
-    p.consensus_rank = +p.consensus_rank || 999;
-    p.age = +p.age || 0;
-    p.value_gap = +p.value_gap || 0;
-    p.gem_flag = +p.gem_flag || 0;
-    p.bust_flag = +p.bust_flag || 0;
-    p.adp_round = +p.adp_round || 10;
-    p.target_round = +p.target_round || 10;
-    p.vorp_raw = +p.vorp_raw || 0;
-    p.vorp_adjusted = +p.vorp_adjusted || 0;
-    p.vorp_2qb_adjusted = p.vorp_2qb_adjusted !== '' ? +p.vorp_2qb_adjusted : null;
-    p.positional_drop = +p.positional_drop || 0;
-    p.master_score = p.master_score !== '' ? +p.master_score : 0;
-    p.injury_risk_score = p.injury_risk_score !== '' ? +p.injury_risk_score : 0;
-    p.floor_score_v2 = p.floor_score_v2 !== '' ? +p.floor_score_v2 : 0;
+  // fetch round_report.md
+  try{ roundMD = await (await fetch('round_report.md?v='+Date.now())).text(); }catch(e){}
+
+  // coerce numbers
+  board.forEach(p=>{
+    p.my_rank=n(p.my_rank)||999; p.consensus_rank=n(p.consensus_rank)||999;
+    p.age=n(p.age); p.value_gap=n(p.value_gap);
+    p.gem_flag=n(p.gem_flag); p.bust_flag=n(p.bust_flag);
+    p.target_round=n(p.target_round)||10; p.adp_round=n(p.adp_round)||10;
+    p.vorp_adjusted=n(p.vorp_adjusted); p.vorp_2qb_adjusted=p.vorp_2qb_adjusted!==''?n(p.vorp_2qb_adjusted):null;
+    p.proj_pts_2026=n(p.proj_pts_2026); p.ceiling_score=n(p.ceiling_score);
+    p.floor_score_v2=n(p.floor_score_v2)||n(p.floor_score);
+    p.future_value=n(p.future_value); p.master_score=n(p.master_score);
+    p.injury_risk_score=n(p.injury_risk_score);
+    p.games_missed_2025=n(p.games_missed_2025);
+    p.games_missed_2024=n(p.games_missed_2024);
   });
-  idpData.forEach(p => {
-    p.proj_fppg = +p.proj_fppg || 0;
-    p.proj_sacks = +p.proj_sacks || 0;
-    p.proj_solo_tackles = +p.proj_solo_tackles || 0;
-    p.proj_ints = +p.proj_ints || 0;
-    p.proj_tfl = +p.proj_tfl || 0;
-    p.age = +p.age || 0;
+  idpData.forEach(p=>{
+    ['proj_fppg','proj_sacks','proj_solo_tackles','proj_ints','proj_tfl','age']
+      .forEach(c=>p[c]=n(p[c]));
   });
-  vegasData.forEach(p => { p.win_total = +p.win_total || 0; });
-  vorpData.forEach(p => {
-    p.vorp_rank = +p.vorp_rank || 99;
-    p.vorp_raw = +p.vorp_raw || 0;
-    p.vorp_adjusted = +p.vorp_adjusted || 0;
-    p.vorp_2qb_adjusted = p.vorp_2qb_adjusted !== '' ? +p.vorp_2qb_adjusted : null;
-    p.te_premium_pts = p.te_premium_pts !== '' ? +p.te_premium_pts : 0;
-    p.drop_to_next = +p.drop_to_next || 0;
-    p.drop_pct = +p.drop_pct || 0;
+  vegasData.forEach(p=>p.win_total=n(p.win_total));
+  vorpData.forEach(p=>{
+    ['vorp_rank','vorp_raw','vorp_adjusted','drop_to_next','drop_pct']
+      .forEach(c=>p[c]=n(p[c]));
+    p.vorp_2qb_adjusted=p.vorp_2qb_adjusted!==''?n(p.vorp_2qb_adjusted):null;
+    p.te_premium_pts=n(p.te_premium_pts);
   });
+
+  // build vegas lookup by player
+  window._vegasMap={};
+  vegasData.forEach(p=>{ window._vegasMap[p.player?.toLowerCase()]= p; });
+
+  renderStatCards();
   renderBoard();
-  renderIDP();
-  renderVegas();
-  buildVegasTeamCards();
-  initTracker();
-  renderVORPTab();
-  renderInjuryTab();
+  initDraftState();
 }
 
 // ═══════════════════════════════════════════════════════════
-// VORP TAB
+// NAV
 // ═══════════════════════════════════════════════════════════
-function renderVORPTab() {
-  if (!vorpData.length) return;
-  drawCliffCharts();
-  renderVORPTable();
-  renderCliffCards();
-  renderWRDepth();
-}
-
-// ─── Cliff Bar Charts ───────────────────────────────────────
-function drawCliffCharts() {
-  const posGroups = {
-    qb: vorpData.filter(p=>p.pos==='QB').slice(0,20),
-    rb: vorpData.filter(p=>p.pos==='RB').slice(0,20),
-    wr: vorpData.filter(p=>p.pos==='WR').slice(0,20),
-    te: vorpData.filter(p=>p.pos==='TE').slice(0,15),
-  };
-  const colors = { qb:'#FFD700', rb:'#6ee7b7', wr:'#00b4d8', te:'#c084fc' };
-
-  Object.entries(posGroups).forEach(([pos, players]) => {
-    const canvas = document.getElementById(`chart-${pos}`);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const W = canvas.offsetWidth || 300;
-    const H = 160;
-    canvas.width = W;
-    canvas.height = H;
-
-    const scores = players.map(p => pos==='qb' ? (p.vorp_2qb_adjusted||p.vorp_raw) : p.vorp_adjusted);
-    const maxV = Math.max(...scores, 1);
-    const barW = Math.max(8, Math.floor((W - 20) / scores.length) - 2);
-    const tooltip = canvas._tooltip || (canvas._tooltip = {});
-
-    ctx.clearRect(0,0,W,H);
-    scores.forEach((v, i) => {
-      const p = players[i];
-      const bh = Math.round((v / maxV) * (H - 28));
-      const x = 10 + i * (barW + 2);
-      const y = H - bh - 20;
-
-      // Color: cliff = red gradient, else green→yellow
-      const isCliff = p.cliff === 'MAJOR' || p.cliff === 'true';
-      const isMajor = p.cliff === 'MAJOR';
-
-      if (isMajor) {
-        ctx.fillStyle = '#ff3b3b';
-      } else if (isCliff) {
-        ctx.fillStyle = '#ff9f43';
-      } else {
-        const ratio = i / scores.length;
-        const r = Math.round(76 + ratio * 120);
-        const g = Math.round(175 - ratio * 60);
-        ctx.fillStyle = `rgb(${r},${g},80)`;
-      }
-      ctx.fillRect(x, y, barW, bh);
-
-      // Cliff line
-      if (isCliff && i < scores.length - 1) {
-        const lx = x + barW + 1;
-        ctx.strokeStyle = isMajor ? '#ff3b3b' : '#ff9f43';
-        ctx.lineWidth = isMajor ? 2.5 : 1.5;
-        ctx.setLineDash([3,2]);
-        ctx.beginPath(); ctx.moveTo(lx, 2); ctx.lineTo(lx, H-20); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = isMajor ? '#ff3b3b' : '#ff9f43';
-        ctx.font = `bold 8px JetBrains Mono, monospace`;
-        ctx.fillText(isMajor?'🚨':'⚠', lx-4, 10);
-      }
-
-      // Player label (abbreviated)
-      if (barW >= 10) {
-        ctx.fillStyle = '#6b7fa3';
-        ctx.font = '8px monospace';
-        ctx.save(); ctx.translate(x + barW/2, H - 4);
-        ctx.rotate(-Math.PI/2);
-        const label = p.player.split(' ').pop().slice(0,6);
-        ctx.fillText(label, 0, 0);
-        ctx.restore();
-      }
-    });
-
-    // Hover tooltip
-    canvas.onmousemove = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const idx = Math.floor((mx - 10) / (barW + 2));
-      if (idx >= 0 && idx < players.length) {
-        const p = players[idx];
-        const v = scores[idx];
-        canvas.title = `${p.player} | VORP: ${v} | Drop→next: ${p.drop_to_next} (${p.drop_pct}%)${p.cliff!=='false'?' ⚠️ CLIFF':''}`;
-      }
-    };
+function go(tab){
+  document.querySelectorAll('.nav-tab').forEach((t,i)=>{
+    const tabs=['master','vorp','injury','idp','vegas','rounds','draft'];
+    t.classList.toggle('active', tabs[i]===tab);
   });
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  if(!_renderedTabs.has(tab)){
+    _renderedTabs.add(tab);
+    if(tab==='vorp'){renderVORPTab();}
+    else if(tab==='injury'){renderInjuryTab();}
+    else if(tab==='idp'){renderIDP();}
+    else if(tab==='vegas'){renderVegas();buildVegasCards();}
+    else if(tab==='rounds'){renderRounds();}
+    else if(tab==='draft'){renderDraftPanel();}
+  }
+  if(tab==='vorp') setTimeout(drawChart,100);
 }
 
-// ─── VORP Table ─────────────────────────────────────────────
-function setVORPFilter(pos, btn) {
-  vorpPosFilter = pos;
-  document.querySelectorAll('#tab-vorp .filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderVORPTable();
+// ═══════════════════════════════════════════════════════════
+// TAB 1 — MASTER BOARD
+// ═══════════════════════════════════════════════════════════
+let _bPos='ALL', _bSort={col:'master_score',dir:-1}, _bGem=false, _bSafe=false, _bCeil=false;
+
+function renderStatCards(){
+  const gems=board.filter(p=>p.gem_flag==1).length;
+  const busts=board.filter(p=>p.bust_flag==1).length;
+  const high=board.filter(p=>p.injury_risk_score>=7).length;
+  document.getElementById('statCards').innerHTML=`
+    <div class="stat-card"><div class="label">Players Loaded</div><div class="value" style="color:var(--boost)">${board.length}</div></div>
+    <div class="stat-card"><div class="label">💎 Gems Found</div><div class="value" style="color:var(--gem)">${gems}</div></div>
+    <div class="stat-card"><div class="label">💀 Busts Flagged</div><div class="value" style="color:var(--bust)">${busts}</div></div>
+    <div class="stat-card"><div class="label">⚠️ High Risk</div><div class="value" style="color:#ff9f43">${high}</div></div>`;
 }
 
-function sortVORP(col) {
-  if (vorpSort.col === col) vorpSort.dir *= -1;
-  else { vorpSort.col = col; vorpSort.dir = 1; }
-  renderVORPTable();
+function setBPill(pos, el){
+  _bPos=pos;
+  document.querySelectorAll('[id^="bp-"]').forEach(e=>e.classList.remove('on'));
+  el.classList.add('on');
+  renderBoard();
+}
+function setBToggle(flag, el){
+  if(flag==='GEM'){_bGem=!_bGem; el.classList.toggle('on',_bGem);}
+  if(flag==='SAFE'){_bSafe=!_bSafe; el.classList.toggle('on',_bSafe);}
+  if(flag==='CEIL'){_bCeil=!_bCeil; el.classList.toggle('on',_bCeil);}
+  renderBoard();
+}
+function setBSort(col){
+  const cur=_bSort.col===col;
+  _bSort={col, dir:cur?_bSort.dir*-1:(col==='injury_risk_score'?1:-1)};
+  document.querySelectorAll('[id^="bs-"]').forEach(e=>e.textContent='');
+  const el=document.getElementById('bs-'+col);
+  if(el) el.textContent=_bSort.dir===-1?' ▼':' ▲';
+  renderBoard();
 }
 
-function renderVORPTable() {
-  const q = (document.getElementById('vorpSearch')?.value||'').toLowerCase();
-  const numCols = ['vorp_rank','vorp_raw','vorp_adjusted','vorp_2qb_adjusted','drop_to_next','drop_pct'];
-  const data = vorpData.filter(p => {
-    if (vorpPosFilter !== 'ALL' && p.pos !== vorpPosFilter) return false;
-    if (q && !p.player.toLowerCase().includes(q)) return false;
+function getFilteredBoard(){
+  const q=(document.getElementById('boardQ')?.value||'').toLowerCase();
+  const sortSel=document.getElementById('boardSort')?.value||'master_score';
+  if(_bSort.col==='master_score'&&sortSel!=='master_score'){
+    _bSort.col=sortSel; _bSort.dir=-1;
+  }
+  const numCols=['my_rank','consensus_rank','age','value_gap','target_round','master_score',
+    'proj_pts_2026','vorp_adjusted','ceiling_score','floor_score_v2','injury_risk_score','future_value'];
+  return board.filter(p=>{
+    if(_bPos!=='ALL'){
+      if(_bPos==='IDP'&&!isIDP(p.pos)) return false;
+      if(_bPos!=='IDP'&&p.pos!==_bPos) return false;
+    }
+    if(_bGem&&p.gem_flag!=1) return false;
+    if(_bSafe&&p.injury_risk_score>3.0) return false;
+    if(_bCeil&&p.ceiling_score<80) return false;
+    if(q&&!p.player.toLowerCase().includes(q)&&!(p.team||'').toLowerCase().includes(q)) return false;
     return true;
-  }).sort((a,b) => {
-    let av = a[vorpSort.col], bv = b[vorpSort.col];
-    if (numCols.includes(vorpSort.col)) { av=+av||0; bv=+bv||0; }
-    else { av=av||''; bv=bv||''; }
-    if (av < bv) return -vorpSort.dir;
-    if (av > bv) return vorpSort.dir;
-    return 0;
-  });
-
-  // top-5 per position for gold bg
-  const posTop5 = {};
-  vorpData.forEach(p => {
-    posTop5[p.pos] = posTop5[p.pos] || [];
-    posTop5[p.pos].push(p.vorp_adjusted);
-  });
-  Object.keys(posTop5).forEach(k => posTop5[k].sort((a,b)=>b-a).splice(5));
-  const isTop5 = p => (posTop5[p.pos]||[]).includes(p.vorp_adjusted);
-
-  document.getElementById('vorpBody').innerHTML = data.map(p => {
-    const rowStyle = p.cliff==='MAJOR' ? 'border-left:3px solid #ff3b3b;background:rgba(255,59,59,.05)'
-                   : p.cliff==='true'  ? 'border-left:3px solid #ff9f43;background:rgba(255,159,67,.04)'
-                   : isTop5(p)         ? 'background:rgba(255,215,0,.07)' : '';
-
-    const cliffBadge = p.cliff==='MAJOR' ? '<span style="color:#ff3b3b;font-weight:700">🚨 MAJOR</span>'
-                     : p.cliff==='true'  ? '<span style="color:#ff9f43;font-weight:700">⚠️ CLIFF</span>'
-                     : '—';
-
-    const tepBadge = p.te_premium_pts > 20
-      ? `<span style="background:rgba(0,180,216,.15);color:#00b4d8;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700">+${p.te_premium_pts} TEP</span>` : '';
-
-    const v2qb = p.vorp_2qb_adjusted != null
-      ? `<strong style="color:var(--qb)">${p.vorp_2qb_adjusted}</strong>` : '—';
-
-    const dropColor = p.drop_pct >= 25 ? '#ff3b3b' : p.drop_pct >= 15 ? '#ff9f43' : 'var(--muted)';
-    const posClass = posIsIDP(p.pos)?'pos-EDGE':`pos-${p.pos}`;
-
-    return `<tr style="${rowStyle}">
-      <td><strong>${p.vorp_rank}</strong></td>
-      <td>${p.player}</td>
-      <td><span class="badge-pos ${posClass}">${p.pos}</span></td>
-      <td>${p.team}</td>
-      <td>${p.vorp_raw} ${tepBadge}</td>
-      <td><strong>${p.vorp_adjusted}</strong></td>
-      <td>${v2qb}</td>
-      <td style="color:${dropColor}">−${p.drop_to_next} <span style="font-size:10px">(${p.drop_pct}%)</span></td>
-      <td>${cliffBadge}</td>
-    </tr>`;
-  }).join('');
-
-  document.querySelectorAll('#vorpTable th').forEach(th => {
-    const col = th.dataset.col;
-    th.classList.toggle('sorted', col===vorpSort.col);
-    const arr = th.querySelector('.sort-arrow');
-    if (arr) arr.textContent = col===vorpSort.col ? (vorpSort.dir===1?'▲':'▼') : '▼';
+  }).sort((a,b)=>{
+    let av=a[_bSort.col],bv=b[_bSort.col];
+    if(numCols.includes(_bSort.col)){av=+av||0;bv=+bv||0;}
+    return av<bv?_bSort.dir:av>bv?-_bSort.dir:0;
   });
 }
 
-// ─── Cliff Insight Cards ─────────────────────────────────────
-function renderCliffCards() {
-  const cliffs = vorpData.filter(p => p.cliff==='MAJOR'||p.cliff==='true')
-    .sort((a,b) => b.drop_pct - a.drop_pct);
+function riskColor(r){
+  if(r<=2.5) return '#4CAF50';
+  if(r<=4.9) return '#FFD700';
+  if(r<=6.9) return '#ff9f43';
+  if(r<=8.9) return '#ff6b6b';
+  return '#cc0000';
+}
 
-  const posLabels = {QB:'QB',RB:'RB',WR:'WR',TE:'TE'};
-  // Build one card per position for the biggest cliff
-  const seen = {};
-  const cards = [];
-  cliffs.forEach(p => {
-    if (seen[p.pos]) return;
-    seen[p.pos] = true;
-    const isMajor = p.cliff === 'MAJOR';
-    const posPlayers = vorpData.filter(d=>d.pos===p.pos).sort((a,b)=>a.vorp_rank-b.vorp_rank);
-    const cliffIdx = posPlayers.findIndex(d=>d.player===p.player);
-    const above = posPlayers.slice(0, cliffIdx+1).slice(-3); // up to 3 players above cliff
-    const below = posPlayers[cliffIdx+1];
-    const pickEst = p.pos==='QB'? (p.vorp_rank<=2?'R1':'R2-R3')
-                  : p.pos==='RB'? (p.vorp_rank<=5?'R1':'R2')
-                  : p.pos==='TE'? (p.vorp_rank<=2?'R2-R3':'R3-R4') : 'R4-R5';
-    const border = isMajor ? '#ff3b3b' : '#ff9f43';
-    const icon = isMajor ? '🚨 MAJOR' : '⚠️';
-    const posColor = p.pos==='QB'?'var(--qb)':p.pos==='RB'?'#6ee7b7':p.pos==='WR'?'var(--boost)':'#c084fc';
-    cards.push(`
-      <div class="card" style="border-color:${border};border-width:1.5px">
-        <div style="font-size:13px;font-weight:700;color:${border};margin-bottom:8px">${icon} ${p.pos} CLIFF after ${p.player}</div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Target window: <strong style="color:${posColor}">${pickEst}</strong></div>
-        ${above.map(pl=>`<div style="font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-          <span style="color:var(--gem)">✓</span> ${pl.player}
-          <span style="float:right;color:var(--text)">+${pl.pos==='QB'?(pl.vorp_2qb_adjusted||pl.vorp_raw):pl.vorp_adjusted}</span>
-        </div>`).join('')}
-        <div style="font-size:12px;padding:3px 0;margin-top:4px;color:${border}">
-          ↓ <strong>${below?below.player:'Wasteland'}</strong>
-          <span style="float:right">${below?`+${below.pos==='QB'?(below.vorp_2qb_adjusted||below.vorp_raw):below.vorp_adjusted}`:'—'}</span>
-        </div>
-        <div style="margin-top:8px;font-size:11px;color:${border};font-weight:700">
-          Drop: ${p.drop_to_next} pts (${p.drop_pct}%) — ${isMajor?'MUST draft before this cliff':'draft before cliff hits'}
-        </div>
-      </div>`);
-  });
+let _openScorecard=null;
+function toggleScorecard(player, tr){
+  if(_openScorecard){ _openScorecard.remove(); _openScorecard=null;
+    if(_openScorecard && _openScorecard._player===player) return; }
+  const p=board.find(d=>d.player===player); if(!p) return;
+  const vd=window._vegasMap?.[player.toLowerCase()];
+  const ms=p.master_score, r=p.injury_risk_score;
+  const msC=ms>=85?'var(--qb)':ms>=75?'var(--gem)':ms>=65?'var(--boost)':'var(--muted)';
+  const rC=riskColor(r);
 
-  // Special QB 2QB card
-  const qbMajor = vorpData.find(p=>p.pos==='QB'&&p.cliff==='MAJOR');
-  if (qbMajor) {
-    cards.unshift(`
-      <div class="card" style="border-color:var(--qb);border-width:1.5px;grid-column:span 1">
-        <div style="font-size:13px;font-weight:700;color:var(--qb);margin-bottom:6px">⚡ 2QB FORMAT — ALLEN IS IRREPLACEABLE</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">2QB-adjusted VORP gap: Allen 109 vs Daniels 64 = <strong style="color:var(--bust)">−45 pts</strong></div>
-        <div style="font-size:11px;color:var(--text)">Allen is worth an extra <strong style="color:var(--gem)">~18 VORP pts</strong> in your 2QB format vs standard 1QB leagues. This is the single biggest positional value gap on the board.</div>
-      </div>`);
+  function bar(v,max,color){
+    const pct=Math.min(100,Math.round(v/max*100));
+    return `<div class="sbar-wrap"><div class="sbar-track"><div class="sbar-fill" style="width:${pct}%;background:${color}"></div></div><span class="val" style="color:${color}">${v}</span></div>`;
+  }
+  function row(icon,lbl,val,max,color){
+    return `<div class="sc-metric"><span style="width:14px">${icon}</span><span class="lbl">${lbl}</span>${bar(val,max,color)}</div>`;
   }
 
-  document.getElementById('cliffCards').innerHTML = cards.join('');
-}
+  // Build efficiency lines
+  const effParts=[];
+  if(p.snap_pct)            effParts.push(`Snap <b>${p.snap_pct}%</b>`);
+  if(p.cpoe)                effParts.push(`CPOE <b>${+p.cpoe>0?'+':''}${p.cpoe}%</b>`);
+  if(p.air_yards_per_att)   effParts.push(`AY/att <b>${p.air_yards_per_att}</b>`);
+  if(p.pressure_rate_faced) effParts.push(`Pressure <b>${p.pressure_rate_faced}%</b>`);
+  if(p.target_share)        effParts.push(`TgtShare <b>${p.target_share}%</b>`);
+  if(p.separation)          effParts.push(`Sep <b>${p.separation}</b>`);
+  if(p.yprt)                effParts.push(`YPRT <b>${p.yprt}</b>`);
+  if(p.opportunity_share)   effParts.push(`OppShare <b>${p.opportunity_share}%</b>`);
+  if(p.yac_per_carry)       effParts.push(`YAC/c <b>${p.yac_per_carry}</b>`);
+  if(p.broken_tackle_rate)  effParts.push(`BTR <b>${p.broken_tackle_rate}%</b>`);
+  if(p.snap_pct_def)        effParts.push(`D-Snap <b>${p.snap_pct_def}%</b>`);
+  if(p.pressure_rate_pass_rush) effParts.push(`PressRate <b>${p.pressure_rate_pass_rush}%</b>`);
+  if(p.pass_rush_win_rate)  effParts.push(`PRWR <b>${p.pass_rush_win_rate}%</b>`);
+  if(p.tackle_rate)         effParts.push(`TklRate <b>${p.tackle_rate}%</b>`);
 
-// ─── WR Depth Banner ──────────────────────────────────────────
-function renderWRDepth() {
-  const wrs = vorpData.filter(p=>p.pos==='WR').sort((a,b)=>a.vorp_rank-b.vorp_rank);
-  if (!wrs.length) return;
-  const wr1 = wrs[0]?.vorp_adjusted || 1;
-  const wr15 = wrs[14]?.vorp_adjusted || 0;
-  const dropPct = Math.round((wr1-wr15)/wr1*100);
-  const isFlat = dropPct < 60;
-  const biggestCliff = wrs.findIndex(p=>p.cliff==='MAJOR'||p.cliff==='true');
-
-  document.getElementById('wrDepthBanner').innerHTML = isFlat
-    ? `<div style="background:rgba(76,175,80,.12);border:1px solid var(--gem);border-radius:6px;padding:12px 16px;font-size:13px;font-weight:700;color:var(--gem)">
-        ✅ WR DEPTH CONFIRMED — WR1→WR15 drops only ${dropPct}%. Safe to wait until R4-R5 on WRs. No early run needed.
-        ${biggestCliff > 0 ? `<span style="color:var(--muted);font-weight:400;font-size:11px;display:block;margin-top:4px">First cliff appears at WR${biggestCliff+1} (${wrs[biggestCliff]?.player})</span>` : ''}
-       </div>`
-    : `<div style="background:rgba(255,107,107,.12);border:1px solid var(--bust);border-radius:6px;padding:12px 16px;font-size:13px;font-weight:700;color:var(--bust)">
-        ⚠️ WR DROPS SHARPLY — ${dropPct}% decline R1→R15. Secure WR alpha by R2.
-       </div>`;
-
-  document.getElementById('wrDepthBody').innerHTML = wrs.slice(0,30).map((p,i) => {
-    const isCliff = p.cliff==='MAJOR'||p.cliff==='true';
-    const rowStyle = isCliff ? 'background:rgba(255,107,107,.06);border-left:2px solid #ff9f43' : i%2===0?'background:rgba(255,255,255,.02)':'';
-    const dropColor = p.drop_pct>=25?'#ff3b3b':p.drop_pct>=15?'#ff9f43':'var(--muted)';
-    return `<tr style="${rowStyle}">
-      <td>WR${p.vorp_rank}</td>
-      <td>${p.player}${isCliff?` <span style="color:#ff9f43;font-size:10px">⚠️</span>`:''}</td>
-      <td>${p.team}</td>
-      <td><strong style="color:var(--boost)">${p.vorp_adjusted}</strong></td>
-      <td style="color:${dropColor}">−${p.drop_to_next} (${p.drop_pct}%)</td>
-    </tr>`;
-  }).join('');
-}
-
-// ─── Strategy Validator ───────────────────────────────────────
-function validateStrategy() {
-  const input = document.getElementById('stratInput').value.trim().toUpperCase();
-  if (!input) return;
-  const rounds = input.split(/\s+/);
-
-  // Best available VORP per position at each round slot
-  const posQueues = {};
-  ['QB','RB','WR','TE'].forEach(pos => {
-    posQueues[pos] = vorpData.filter(p=>p.pos===pos).sort((a,b)=>a.vorp_rank-b.vorp_rank).map(p=>({
-      player:p.player, vorp: pos==='QB'?(p.vorp_2qb_adjusted||p.vorp_raw):p.vorp_adjusted
-    }));
-  });
-  posQueues['IDP'] = [{player:'Elite IDP (avg)',vorp:22},{player:'Solid IDP (avg)',vorp:17},{player:'Stash IDP (avg)',vorp:12}];
-
-  const posPicked = {QB:0,RB:0,WR:0,TE:0,IDP:0};
-  let totalVORP = 0;
-  const picks = [];
-  rounds.slice(0,10).forEach((pos,i) => {
-    const q = posQueues[pos];
-    if (!q) { picks.push({round:i+1,pos,player:'Unknown pos',vorp:0}); return; }
-    const idx = posPicked[pos]||0;
-    const p = q[idx] || {player:`${pos}${idx+1} (proj)`, vorp:0};
-    posPicked[pos] = idx+1;
-    totalVORP += p.vorp;
-    picks.push({round:i+1,pos,player:p.player,vorp:p.vorp});
-  });
-
-  // Compare to QB-heavy and RB-heavy alternatives
-  const altQB = [...posQueues['QB'].slice(0,2),...posQueues['RB'].slice(0,2),...posQueues['WR'].slice(0,3),...posQueues['TE'].slice(0,1),...Array(2).fill({player:'IDP',vorp:19.5})].slice(0,10).reduce((s,p)=>s+p.vorp,0);
-  const altRB = [...posQueues['RB'].slice(0,3),...posQueues['QB'].slice(0,2),...posQueues['WR'].slice(0,3),...posQueues['TE'].slice(0,1),...[{player:'IDP',vorp:19.5}]].slice(0,10).reduce((s,p)=>s+p.vorp,0);
-
-  const eff = Math.min(100, Math.round(totalVORP / Math.max(altQB,altRB,1) * 100));
-  const effColor = eff>=85?'var(--gem)':eff>=70?'var(--idp)':'var(--bust)';
-
-  document.getElementById('stratResult').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
-      <div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center">
-        <div style="font-size:11px;color:var(--muted)">Your VORP</div>
-        <div style="font-size:22px;font-weight:700;color:${effColor}">${totalVORP}</div>
+  const html=`<div class="scorecard" data-player="${player}">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">
+      <strong style="font-size:14px">${p.gem_flag==1?'💎 ':''}${p.player}${p.bust_flag==1?' 💀':''}</strong>
+      ${posBadge(p.pos)} <span style="color:var(--muted)">${p.team}</span> <span style="color:var(--muted)">Age ${p.age}</span>
+      ${r>=7?'<span style="color:var(--bust);font-weight:700">🔴 HIGH RISK</span>':''}
+    </div>
+    <div class="sc-grid">
+      <div>
+        ${row('🎯','Proj 2026',p.proj_pts_2026,420,'var(--boost)')}
+        ${row('⬆️','Ceiling',p.ceiling_score,100,'var(--gem)')}
+        ${row('⬇️','Floor v2',p.floor_score_v2,100,'var(--rb)')}
+        ${row('🔮','Future Val',p.future_value,100,'var(--idp)')}
+        ${p.vorp_adjusted>0?row('📈','VORP',p.vorp_adjusted,300,'var(--boost)'):''}
+        ${p.vorp_2qb_adjusted?row('⚡','2QB VORP',p.vorp_2qb_adjusted,120,'var(--qb)'):''}
       </div>
-      <div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center">
-        <div style="font-size:11px;color:var(--muted)">QB-Heavy Alt</div>
-        <div style="font-size:22px;font-weight:700;color:var(--qb)">${altQB}</div>
-      </div>
-      <div style="background:var(--bg3);border-radius:6px;padding:10px;text-align:center">
-        <div style="font-size:11px;color:var(--muted)">Efficiency</div>
-        <div style="font-size:22px;font-weight:700;color:${effColor}">${eff}%</div>
+      <div>
+        ${row('⭐','Master Score',ms,100,msC)}
+        <div class="sc-metric" style="margin-top:6px">
+          <span style="width:14px">🩹</span><span class="lbl">Injury Risk</span>
+          <div class="sbar-wrap"><div class="sbar-track"><div class="sbar-fill" style="width:${r*10}%;background:${rC}"></div></div><span class="val" style="color:${rC}">${r}</span></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${p.injury_risk_tier||''}</div>
+        ${p.games_missed_2025!==''?`<div style="font-size:11px;color:var(--muted)">Missed: 2025=${p.games_missed_2025||0} / 2024=${p.games_missed_2024||0}</div>`:''}
+        ${p.injury_type_history&&p.injury_type_history!=='None noted'?`<div style="font-size:11px;color:#ff9f43;margin-top:2px">⚠️ ${p.injury_type_history}</div>`:''}
+        ${vd?`<div style="font-size:11px;margin-top:6px;color:${vd.vegas_flag==='BOOST'?'var(--boost)':vd.vegas_flag==='FADE'?'var(--bust)':'var(--muted)'}">🎰 ${vd.vegas_flag} · ${vd.team} ${vd.win_total}W</div>`:''}
       </div>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Round</th><th>Pos</th><th>Best Available</th><th>VORP</th><th>Signal</th></tr></thead>
-        <tbody>${picks.map(p => {
-          const cliffP = vorpData.find(d=>d.pos===p.pos&&d.cliff!=='false'&&(vorpData.filter(q=>q.pos===p.pos&&q.vorp_rank<=p.round).length>0));
-          const vColor = p.vorp>=80?'var(--qb)':p.vorp>=40?'var(--gem)':p.vorp>=20?'var(--boost)':'var(--muted)';
-          return `<tr><td>R${p.round}</td><td><span class="badge-pos pos-${p.pos}">${p.pos}</span></td><td>${p.player}</td><td style="color:${vColor}"><strong>${p.vorp}</strong></td><td>${p.vorp>=100?'🔥 Elite value':p.vorp>=50?'✅ Solid':p.vorp>=20?'📦 OK':'⚠️ Low'}</td></tr>`;
-        }).join('')}</tbody>
-      </table>
-    </div>`;
+    ${effParts.length?`<div style="border-top:1px solid rgba(255,255,255,.07);margin-top:8px;padding-top:7px;font-size:11px;color:var(--muted)">${effParts.join(' &nbsp;|&nbsp; ')}</div>`:''}
+    ${p.cliff&&p.cliff!=='false'?`<div style="margin-top:7px;font-size:11px;font-weight:700;color:${p.cliff==='MAJOR'?'#ff3b3b':'#ff9f43'}">${p.cliff==='MAJOR'?'🚨':'⚠️'} Last before ${p.pos} cliff — draft now or miss the window</div>`:''}
+    ${p.notes?`<div style="margin-top:6px;font-size:11px;color:var(--muted)">${p.notes}</div>`:''}
+  </div>`;
+
+  const newTr=document.createElement('tr');
+  newTr._player=player;
+  const td=document.createElement('td');
+  td.colSpan=20;
+  td.innerHTML=html;
+  newTr.appendChild(td);
+  tr.insertAdjacentElement('afterend',newTr);
+  _openScorecard=newTr;
+  // animate bars
+  setTimeout(()=>{
+    newTr.querySelectorAll('.sbar-fill').forEach(b=>{
+      const w=b.style.width; b.style.width='0'; setTimeout(()=>b.style.width=w,50);
+    });
+  },30);
 }
 
-// ═══════════════════════════════════════════════════════════
-// TAB SWITCHER
-// ═══════════════════════════════════════════════════════════
-function switchTab(name) {
-  document.querySelectorAll('.tab').forEach((t,i) => {
-    const tabs = ['draft','sim','idp','vegas','vorp','injury','tracker'];
-    t.classList.toggle('active', tabs[i] === name);
-  });
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-}
-
-// ═══════════════════════════════════════════════════════════
-// DRAFT BOARD
-// ═══════════════════════════════════════════════════════════
-function posIsIDP(pos) {
-  return ['EDGE','LB','DB','DL','S','CB'].includes((pos||'').toUpperCase());
-}
-
-function filterBoard() { renderBoard(); }
-
-function setPosFilter(pos, btn) {
-  posFilter = pos;
-  document.querySelectorAll('#tab-draft .filter-btn').forEach(b => {
-    b.classList.remove('active');
-  });
-  btn.classList.add('active');
-  renderBoard();
-}
-
-function getFilteredBoard() {
-  const q = (document.getElementById('boardSearch')?.value || '').toLowerCase();
-  return boardData.filter(p => {
-    if (posFilter !== 'ALL') {
-      if (posFilter === 'IDP') { if (!posIsIDP(p.pos)) return false; }
-      else if (p.pos !== posFilter) return false;
-    }
-    if (q && !p.player.toLowerCase().includes(q) && !(p.team||'').toLowerCase().includes(q)) return false;
-    return true;
-  });
-}
-
-function sortBoard(col) {
-  if (boardSort.col === col) boardSort.dir *= -1;
-  else { boardSort.col = col; boardSort.dir = 1; }
-  // numeric cols sort numerically, others alphabetically
-  renderBoard();
-}
-
-function renderBoard() {
-  const numCols = ['my_rank','consensus_rank','age','value_gap','target_round','adp_round'];
-  const data = getFilteredBoard().sort((a,b) => {
-    let av = a[boardSort.col], bv = b[boardSort.col];
-    if (numCols.includes(boardSort.col)) { av = +av; bv = +bv; }
-    if (av < bv) return -boardSort.dir;
-    if (av > bv) return boardSort.dir;
-    return 0;
-  });
-
-  const tbody = document.getElementById('boardBody');
-  tbody.innerHTML = data.map(p => {
-    const isGem = p.gem_flag == 1;
-    const isBust = p.bust_flag == 1;
-    const flag = isGem ? '<span class="gem-badge">💎 GEM</span>' : isBust ? '<span class="bust-badge">💀 BUST</span>' : '—';
-    const prefix = isGem ? '💎 ' : isBust ? '💀 ' : '';
-    const gapNum = +p.value_gap;
-    const gapStr = gapNum > 0 ? `<span style="color:var(--gem)">+${gapNum}</span>` : gapNum < 0 ? `<span style="color:var(--bust)">${gapNum}</span>` : '—';
-    const rowClass = isGem ? 'gem-row' : isBust ? 'bust-row' : '';
-    const posClass = posIsIDP(p.pos) ? 'pos-EDGE' : `pos-${p.pos}`;
-    const targetNum = p.target_round || p.tier || '';
-    const tierKey = (typeof targetNum === 'number' ? `R${targetNum}` : String(targetNum)).replace(/[^RrBb0-9]/g,'') || 'R10';
-    const ms = +p.master_score||0;
-    const msColor = ms>=85?'var(--qb)':ms>=75?'var(--gem)':ms>=65?'var(--boost)':ms>=55?'var(--idp)':'var(--muted)';
-    const ir = +p.injury_risk_score||0;
-    const irColor = ir<=2.5?'#4CAF50':ir<=4.9?'#FFD700':ir<=6.9?'#ff9f43':'#ff6b6b';
-    return `<tr class="${rowClass}">
+function renderBoard(){
+  const data=getFilteredBoard();
+  document.getElementById('boardBody').innerHTML=data.map(p=>{
+    const rc=p.gem_flag==1?'gem-r':p.bust_flag==1?'bust-r':'';
+    const prefix=p.gem_flag==1?'💎 ':p.bust_flag==1?'💀 ':'';
+    const ms=p.master_score;
+    const msC=ms>=85?'var(--qb)':ms>=75?'var(--gem)':ms>=65?'var(--boost)':ms>=55?'var(--idp)':'var(--muted)';
+    const rC=riskColor(p.injury_risk_score);
+    const cliff=p.cliff&&p.cliff!=='false'?`<span style="color:${p.cliff==='MAJOR'?'#ff3b3b':'#ff9f43'};font-size:10px"> ${p.cliff==='MAJOR'?'🚨':'⚠️'}</span>`:'';
+    return `<tr class="${rc}" style="cursor:pointer" onclick="toggleScorecard('${p.player.replace(/'/g,"\\'")}',this)">
       <td><strong>${p.my_rank}</strong></td>
-      <td><strong style="color:${msColor}">${ms||'—'}</strong></td>
-      <td>${prefix}${p.player} <button onclick="boardScorecard('${p.player.replace(/'/g,"\\'")}',this)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;padding:1px 3px">▼</button></td>
-      <td><span class="badge-pos ${posClass}">${p.pos}</span></td>
+      <td><strong style="color:${msC}">${ms||'—'}</strong></td>
+      <td>${prefix}${p.player}${p.injury_risk_score>=7?' 🔴':''}${cliff}</td>
+      <td>${posBadge(p.pos)}</td>
       <td>${p.team}</td>
       <td>${p.age}</td>
-      <td style="color:var(--muted)">${p.consensus_rank}</td>
-      <td>${gapStr}</td>
-      <td><span style="color:${irColor};font-weight:700;font-size:12px">${ir||'—'}</span></td>
-      <td><span class="badge-round">R${p.target_round}</span></td>
-      <td><span class="badge-tier tier-R${p.target_round}">${p.tier||`R${p.target_round}`}</span></td>
-      <td>${flag}</td>
-      <td style="max-width:260px;white-space:normal;font-size:11px;color:var(--muted)">
-        ${p.vorp_adjusted > 0 ? `<span style="color:var(--boost);font-weight:700">📈 +${p.vorp_adjusted}</span>${p.cliff&&p.cliff!=='false'?` <span style="color:${p.cliff==='MAJOR'?'#ff3b3b':'#ff9f43'}">${p.cliff==='MAJOR'?'🚨':'⚠️'}</span>`:''} ` : ''}
-        ${p.notes||''}
-      </td>
+      <td>${p.proj_pts_2026||'—'}</td>
+      <td>${p.vorp_adjusted>0?`+${p.vorp_adjusted}`:'—'}</td>
+      <td>${p.ceiling_score||'—'}</td>
+      <td>${p.floor_score_v2||'—'}</td>
+      <td style="color:${rC};font-weight:700">${p.injury_risk_score||'—'}</td>
+      <td><span class="rnd-badge">R${p.target_round}</span></td>
+      <td>${p.gem_flag==1?'<span style="color:var(--gem)">💎 GEM</span>':p.bust_flag==1?'<span style="color:var(--bust)">💀 BUST</span>':'—'}</td>
     </tr>`;
   }).join('');
-
-  document.getElementById('boardCount').textContent = `Showing ${data.length} of ${boardData.length} players`;
-
-  // Update sort arrows
-  document.querySelectorAll('#boardTable th').forEach(th => {
-    const col = th.dataset.col;
-    th.classList.toggle('sorted', col === boardSort.col);
-    const arrow = th.querySelector('.sort-arrow');
-    if (arrow && col === boardSort.col) arrow.textContent = boardSort.dir === 1 ? '▲' : '▼';
-    else if (arrow) arrow.textContent = '▼';
-  });
+  document.getElementById('boardCount').textContent=`Showing ${data.length} of ${board.length} players`;
 }
 
 // ═══════════════════════════════════════════════════════════
-// SIM DRAFT
+// TAB 2 — VORP & CLIFFS
 // ═══════════════════════════════════════════════════════════
-function pickToOverall(pick) {
-  // pick is like "2.05" or just an integer
-  if (typeof pick === 'string' && pick.includes('.')) {
-    const [r, s] = pick.split('.').map(Number);
-    return (r - 1) * 10 + s;
-  }
-  return +pick;
-}
+let _vPos='QB', _qb2=false;
+let _vSort={col:'vorp_rank',dir:1};
 
-function gaussianRand() {
-  let u = 0, v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-}
-
-async function runSims() {
-  const btn = document.getElementById('simBtn');
-  const status = document.getElementById('simStatus');
-  btn.disabled = true;
-  status.textContent = 'Simulating…';
-
-  const players = boardData.slice(0, 120);
-  const SIMS = 100;
-  const TEAMS = 10;
-  const SIGMA = 10; // ~1 round std dev
-
-  const results = players.map(p => ({
-    player: p.player, pos: p.pos, team: p.team,
-    adp: p.my_rank,
-    picks: [], owned: 0
-  }));
-
-  await new Promise(resolve => setTimeout(resolve, 20));
-
-  for (let sim = 0; sim < SIMS; sim++) {
-    // Assign each player a simulated pick = adp + gaussian noise
-    const simBoard = results.map(r => ({
-      ...r, simPick: Math.max(1, Math.round(r.adp + gaussianRand() * SIGMA))
-    })).sort((a,b) => a.simPick - b.simPick);
-
-    // Draft: 10 teams, snake, 12 rounds
-    const ROUNDS = 12;
-    const draftOrder = [];
-    for (let rd = 0; rd < ROUNDS; rd++) {
-      const order = Array.from({length:TEAMS},(_,i)=>i);
-      if (rd % 2 === 1) order.reverse();
-      draftOrder.push(...order);
-    }
-
-    const drafted = new Set();
-    let pickIdx = 0;
-    for (const teamSlot of draftOrder) {
-      // find best available
-      for (const p of simBoard) {
-        if (!drafted.has(p.player)) {
-          drafted.add(p.player);
-          const res = results.find(r => r.player === p.player);
-          if (res) { res.picks.push(pickIdx + 1); res.owned++; }
-          break;
-        }
-      }
-      pickIdx++;
-    }
-  }
-
-  simResults = results.map(r => ({
-    ...r,
-    avgPick: r.picks.length ? +(r.picks.reduce((a,b)=>a+b,0)/r.picks.length).toFixed(1) : 999,
-    earliest: r.picks.length ? Math.min(...r.picks) : 999,
-    latest: r.picks.length ? Math.max(...r.picks) : 999,
-    pctOwned: +((r.owned / SIMS * 100).toFixed(1))
-  }));
-
-  status.textContent = `✅ ${SIMS} sims complete`;
-  btn.disabled = false;
-  renderSim();
-}
-
-function sortSim(col) {
-  if (simSort.col === col) simSort.dir *= -1;
-  else { simSort.col = col; simSort.dir = 1; }
-  renderSim();
-}
-
-function renderSim() {
-  if (!simResults.length) return;
-  const numCols = ['adp','avgPick','earliest','latest','pctOwned'];
-  const data = [...simResults].sort((a,b) => {
-    let av = a[simSort.col], bv = b[simSort.col];
-    if (numCols.includes(simSort.col)) { av=+av; bv=+bv; }
-    if (av < bv) return -simSort.dir;
-    if (av > bv) return simSort.dir;
-    return 0;
+function setVPos(pos,el){
+  _vPos=pos;
+  document.querySelectorAll('#vorpPosTabs .pill').forEach(e=>{
+    if(['QB','RB','WR','TE'].includes(e.textContent)) e.classList.remove('on');
   });
-
-  document.getElementById('simBody').innerHTML = data.map(p => {
-    const diff = p.avgPick - p.adp;
-    let signal = '—';
-    if (diff >= 8) signal = '<span class="steal-icon">🎯 STEAL ZONE</span>';
-    else if (diff <= -8) signal = '<span class="fade-icon">⚠️ OVERDRAFTED</span>';
-    const posClass = posIsIDP(p.pos) ? 'pos-EDGE' : `pos-${p.pos}`;
-    return `<tr>
-      <td>${p.player}</td>
-      <td><span class="badge-pos ${posClass}">${p.pos}</span></td>
-      <td>${p.adp}</td>
-      <td>${p.avgPick}</td>
-      <td>${p.earliest}</td>
-      <td>${p.latest}</td>
-      <td>${p.pctOwned}%</td>
-      <td>${signal}</td>
-    </tr>`;
-  }).join('');
-
-  document.querySelectorAll('#simTable th').forEach(th => {
-    const col = th.dataset.col;
-    th.classList.toggle('sorted', col === simSort.col);
-    const arrow = th.querySelector('.sort-arrow');
-    if (arrow && col === simSort.col) arrow.textContent = simSort.dir === 1 ? '▲' : '▼';
-    else if (arrow) arrow.textContent = '▼';
-  });
+  el.classList.add('on');
+  const qb2btn=document.getElementById('qb2adj');
+  if(qb2btn) qb2btn.style.display=pos==='QB'?'inline-block':'none';
+  renderVORPTable(); drawChart();
 }
+function toggleQB2(el){ _qb2=!_qb2; el.classList.toggle('on',_qb2); drawChart(); renderVORPTable(); }
 
-// ═══════════════════════════════════════════════════════════
-// IDP BOARD
-// ═══════════════════════════════════════════════════════════
-let _idpPosFilter = 'ALL';
-function setIDPFilter(pos, btn) {
-  _idpPosFilter = pos;
-  document.querySelectorAll('#tab-idp .filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderIDP();
-}
+function getVorpScore(p){ return _vPos==='QB'&&_qb2&&p.vorp_2qb_adjusted?p.vorp_2qb_adjusted:p.vorp_adjusted; }
+function getVorpCliff(p){ return _vPos==='QB'&&_qb2?p.cliff_2qb:p.cliff; }
 
-function sortIDP(col) {
-  if (idpSort.col === col) idpSort.dir *= -1;
-  else { idpSort.col = col; idpSort.dir = 1; }
-  renderIDP();
-}
-
-function renderIDP() {
-  const q = (document.getElementById('idpSearch')?.value || '').toLowerCase();
-  const numCols = ['proj_fppg','proj_sacks','proj_solo_tackles','proj_ints','proj_tfl','age'];
-  const data = idpData.filter(p => {
-    if (_idpPosFilter !== 'ALL' && p.pos !== _idpPosFilter) return false;
-    if (q && !p.player.toLowerCase().includes(q)) return false;
-    return true;
-  }).sort((a,b) => {
-    let av = a[idpSort.col], bv = b[idpSort.col];
-    if (numCols.includes(idpSort.col)) { av=+av; bv=+bv; }
-    if (av < bv) return -idpSort.dir;
-    if (av > bv) return idpSort.dir;
-    return 0;
-  });
-
-  const maxFppg = Math.max(...idpData.map(p => p.proj_fppg));
-
-  document.getElementById('idpBody').innerHTML = data.map(p => {
-    const tier = (p.idp_tier||'').toLowerCase();
-    let tierBadge, tierEmoji;
-    if (tier.includes('elite')) { tierBadge = 'idp-tier-elite'; tierEmoji = '🔥 Elite'; }
-    else if (tier.includes('solid')) { tierBadge = 'idp-tier-solid'; tierEmoji = '✅ Solid'; }
-    else if (tier.includes('stash')) { tierBadge = 'idp-tier-stash'; tierEmoji = '📦 Stash'; }
-    else { tierBadge = 'idp-tier-bust'; tierEmoji = '🚫 Bust'; }
-
-    const isGarrett = p.player.includes('Garrett');
-    const isVerse = p.player.includes('Verse');
-    const tradeNote = isGarrett ? ' <span style="font-size:10px;color:var(--idp)">→LAR trade</span>' :
-                      isVerse   ? ' <span style="font-size:10px;color:var(--gem)">→CLE gem</span>' : '';
-
-    const pct = Math.round((p.proj_fppg / maxFppg) * 100);
-    const fppgDisplay = `<div class="fppg-bar">
-      <strong style="color:var(--idp)">${p.proj_fppg}</strong>
-      <div class="fppg-track"><div class="fppg-fill" style="width:${pct}%"></div></div>
+function renderVORPTab(){
+  // build WR banner
+  const wrs=vorpData.filter(p=>p.pos==='WR').sort((a,b)=>a.vorp_rank-b.vorp_rank);
+  if(wrs.length>=15){
+    const drop=Math.round((wrs[0].vorp_adjusted-wrs[14].vorp_adjusted)/wrs[0].vorp_adjusted*100);
+    const isFlat=drop<60;
+    document.getElementById('wrBanner').innerHTML=`<div class="wr-banner" style="background:${isFlat?'rgba(76,175,80,.1)':'rgba(255,107,107,.1)'};border:1px solid ${isFlat?'var(--gem)':'var(--bust)'};color:${isFlat?'var(--gem)':'var(--bust)'}">
+      ${isFlat?'✅':'⚠️'} WR curve drop WR1→WR15: <strong>${drop}%</strong> — ${isFlat?'WR depth CONFIRMED — safe to wait until R4-R5':'WR drops sharply — secure alpha by R2'}
     </div>`;
+  }
+  renderVORPCliffCards();
+  renderVORPTable();
+}
 
+function renderVORPCliffCards(){
+  const cliffs=vorpData.filter(p=>{
+    const c=_vPos==='QB'&&_qb2?p.cliff_2qb:p.cliff;
+    return c==='MAJOR'||c==='true';
+  });
+  const seen={};
+  let html='';
+  ['QB','RB','WR','TE'].forEach(pos=>{
+    const posCliffs=vorpData.filter(p=>p.pos===pos&&(p.cliff==='MAJOR'||p.cliff==='true'))
+      .sort((a,b)=>b.drop_pct-a.drop_pct);
+    if(!posCliffs.length) return;
+    const top=posCliffs[0];
+    const isMaj=top.cliff==='MAJOR';
+    const posPlayers=vorpData.filter(p=>p.pos===pos).sort((a,b)=>a.vorp_rank-b.vorp_rank);
+    const ci=posPlayers.findIndex(p=>p.player===top.player);
+    const above=posPlayers.slice(Math.max(0,ci-2),ci+1);
+    const below=posPlayers[ci+1];
+    const bC=pos==='QB'?'var(--qb)':pos==='RB'?'var(--rb)':pos==='WR'?'var(--wr)':'var(--te)';
+    html+=`<div class="cliff-card" style="border-left:3px solid ${isMaj?'#ff3b3b':'#ff9f43'}">
+      <div style="font-weight:700;color:${isMaj?'#ff3b3b':'#ff9f43'};margin-bottom:6px">${isMaj?'🚨 MAJOR':'⚠️'} ${pos} CLIFF after <strong>${top.player}</strong></div>
+      ${above.map(p=>`<div style="font-size:12px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="color:var(--gem)">✓</span> ${p.player} <span style="float:right;color:${bC}">+${pos==='QB'&&_qb2&&p.vorp_2qb_adjusted?p.vorp_2qb_adjusted:p.vorp_adjusted}</span></div>`).join('')}
+      <div style="font-size:12px;padding:3px 0;color:#ff6b6b;margin-top:3px">↓ ${below?below.player:'Wasteland'} <span style="float:right">${below?`+${below.vorp_adjusted}`:'—'}</span></div>
+      <div style="font-size:11px;color:${isMaj?'#ff3b3b':'#ff9f43'};margin-top:6px;font-weight:700">Drop: ${top.drop_to_next} pts (${top.drop_pct}%)</div>
+    </div>`;
+  });
+  document.getElementById('vorpCards').innerHTML=html;
+}
+
+function drawChart(){
+  const canvas=document.getElementById('vorpCanvas'); if(!canvas) return;
+  const data=vorpData.filter(p=>p.pos===_vPos).sort((a,b)=>a.vorp_rank-b.vorp_rank).slice(0,20);
+  if(!data.length) return;
+  const W=canvas.parentElement.offsetWidth-22||500;
+  const H=200; canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  const scores=data.map(p=>getVorpScore(p));
+  const maxV=Math.max(...scores,1);
+  const barW=Math.max(8,Math.floor((W-30)/data.length)-3);
+  ctx.clearRect(0,0,W,H);
+
+  data.forEach((p,i)=>{
+    const v=scores[i];
+    const bh=Math.round((v/maxV)*(H-30));
+    const x=15+i*(barW+3);
+    const y=H-bh-22;
+    const ratio=i/data.length;
+    const r=Math.round(76+ratio*160); const g=Math.round(175-ratio*100);
+    ctx.fillStyle=`rgb(${r},${g},60)`;
+    const cliff=getVorpCliff(p);
+    if(cliff==='MAJOR') ctx.fillStyle='#ff3b3b';
+    else if(cliff==='true') ctx.fillStyle='#ff9f43';
+    ctx.fillRect(x,y,barW,bh);
+
+    if((cliff==='MAJOR'||cliff==='true')&&i<data.length-1){
+      const lx=x+barW+2;
+      ctx.strokeStyle=cliff==='MAJOR'?'#ff3b3b':'#ff9f43';
+      ctx.lineWidth=cliff==='MAJOR'?2:1.5;
+      ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.moveTo(lx,4); ctx.lineTo(lx,H-22); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle=ctx.strokeStyle;
+      ctx.font='bold 9px monospace';
+      ctx.fillText(cliff==='MAJOR'?'🚨':'⚠',lx-5,13);
+    }
+    if(barW>=10){
+      ctx.fillStyle='#5a6f8a'; ctx.font='8px monospace';
+      ctx.save(); ctx.translate(x+barW/2,H-4); ctx.rotate(-Math.PI/2);
+      ctx.fillText(p.player.split(' ').pop().slice(0,7),0,0);
+      ctx.restore();
+    }
+  });
+
+  const tip=document.getElementById('vorpTip');
+  canvas.onmousemove=e=>{
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left;
+    const idx=Math.floor((mx-15)/(barW+3));
+    if(idx>=0&&idx<data.length){
+      const p=data[idx];
+      tip.style.display='block';
+      tip.style.left=(mx+10)+'px'; tip.style.top='10px';
+      tip.innerHTML=`<strong>${p.player}</strong> | VORP: <strong>${getVorpScore(p)}</strong> | Drop→next: ${p.drop_to_next} (${p.drop_pct}%)${getVorpCliff(p)!=='false'?' ⚠️ CLIFF':''}`;
+    }
+  };
+  canvas.onmouseleave=()=>tip.style.display='none';
+}
+
+function sortVorp(col){
+  const numC=['vorp_rank','vorp_raw','vorp_adjusted','vorp_2qb_adjusted','drop_to_next','drop_pct'];
+  if(_vSort.col===col) _vSort.dir*=-1; else{_vSort={col,dir:col==='vorp_rank'?1:-1};}
+  renderVORPTable();
+}
+
+function renderVORPTable(){
+  const numC=['vorp_rank','vorp_raw','vorp_adjusted','vorp_2qb_adjusted','drop_to_next','drop_pct'];
+  const data=vorpData.filter(p=>p.pos===_vPos).sort((a,b)=>{
+    let av=a[_vSort.col],bv=b[_vSort.col];
+    if(numC.includes(_vSort.col)){av=+av||0;bv=+bv||0;}
+    return av<bv?_vSort.dir:av>bv?-_vSort.dir:0;
+  });
+  document.getElementById('vorpBody').innerHTML=data.map(p=>{
+    const cliff=getVorpCliff(p);
+    const cBadge=cliff==='MAJOR'?'<span style="color:#ff3b3b;font-weight:700">🚨 MAJOR</span>':cliff==='true'?'<span style="color:#ff9f43;font-weight:700">⚠️ CLIFF</span>':'—';
+    const tep=p.te_premium_pts>0?`<span style="background:rgba(0,180,216,.15);color:var(--boost);padding:1px 5px;border-radius:3px;font-size:10px">+${p.te_premium_pts} TEP</span>`:'';
+    const dC=p.drop_pct>=25?'#ff3b3b':p.drop_pct>=15?'#ff9f43':'var(--muted)';
+    const rowS=cliff==='MAJOR'?'background:rgba(255,59,59,.05);border-left:2px solid #ff3b3b':cliff==='true'?'background:rgba(255,159,67,.04);border-left:2px solid #ff9f43':'';
+    return `<tr style="${rowS}">
+      <td><strong>${p.vorp_rank}</strong></td>
+      <td>${p.player}</td>
+      <td>${p.team}</td>
+      <td>${p.vorp_raw} ${tep}</td>
+      <td><strong>${p.vorp_adjusted}</strong></td>
+      <td>${p.vorp_2qb_adjusted!=null?`<strong style="color:var(--qb)">${p.vorp_2qb_adjusted}</strong>`:'—'}</td>
+      <td style="color:${dC}">−${p.drop_to_next}</td>
+      <td style="color:${dC}">${p.drop_pct}%</td>
+      <td>${cBadge}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB 3 — INJURY & RISK
+// ═══════════════════════════════════════════════════════════
+let _rFilter='ALL', _rSort={col:'injury_risk_score',dir:-1};
+
+function setRPill(f,el){
+  _rFilter=f;
+  document.querySelectorAll('[id^="rp-"]').forEach(e=>e.classList.remove('on'));
+  el.classList.add('on');
+  renderInjTable();
+}
+function sortInj(col){
+  if(_rSort.col===col)_rSort.dir*=-1; else _rSort={col,dir:-1};
+  renderInjTable();
+}
+
+function renderInjuryTab(){
+  const high=board.filter(p=>p.injury_risk_score>=7);
+  if(high.length)
+    document.getElementById('injBanner').innerHTML=`<div class="alert" style="margin-bottom:12px">${high.length} players rated 🔴 HIGH RISK or above: ${high.map(p=>`<strong>${p.player}</strong> (${p.injury_risk_score})`).join(', ')}</div>`;
+  renderInjTable();
+  renderSafeCore();
+}
+
+function renderInjTable(){
+  const tierMatch={'LOW':r=>r<=2.5,'MOD':r=>r>2.5&&r<=4.9,'ELV':r=>r>4.9&&r<=6.9,'HIGH':r=>r>6.9};
+  const numC=['injury_risk_score','games_missed_2025','games_missed_2024','master_score'];
+  const data=board.filter(p=>{
+    if(p.injury_risk_score===0&&!p.injury_type_history) return false;
+    if(_rFilter!=='ALL'&&tierMatch[_rFilter]&&!tierMatch[_rFilter](p.injury_risk_score)) return false;
+    return true;
+  }).sort((a,b)=>{
+    let av=a[_rSort.col],bv=b[_rSort.col];
+    if(numC.includes(_rSort.col)){av=+av||0;bv=+bv||0;}
+    return av<bv?_rSort.dir:av>bv?-_rSort.dir:0;
+  });
+
+  function rBg(r){
+    if(r<=2.5) return 'rgba(76,175,80,.08)';
+    if(r<=4.9) return 'rgba(255,215,0,.06)';
+    if(r<=6.9) return 'rgba(255,159,67,.08)';
+    if(r<=8.9) return 'rgba(255,107,107,.10)';
+    return 'rgba(180,0,0,.15)';
+  }
+
+  document.getElementById('injBody').innerHTML=data.map(p=>{
+    const r=p.injury_risk_score, rC=riskColor(r);
+    const ms=p.master_score;
+    const msC=ms>=85?'var(--qb)':ms>=75?'var(--gem)':'var(--boost)';
+    const g25=p.games_missed_2025||0, g24=p.games_missed_2024||0;
+    return `<tr style="background:${rBg(r)};cursor:pointer" onclick="toggleScorecard('${p.player.replace(/'/g,"\\'")}',this)">
+      <td><strong>${p.player}</strong></td>
+      <td>${posBadge(p.pos)}</td>
+      <td>${p.team}</td>
+      <td>
+        <div class="sbar-wrap">
+          <strong style="color:${rC};min-width:26px">${r}</strong>
+          <div class="sbar-track" style="width:55px"><div class="sbar-fill" style="width:${r*10}%;background:${rC}"></div></div>
+        </div>
+      </td>
+      <td style="font-size:11px">${p.injury_risk_tier||'—'}</td>
+      <td style="color:${g25>=5?'#ff6b6b':g25>=3?'#ff9f43':'var(--muted)'}">${g25}</td>
+      <td style="color:${g24>=5?'#ff6b6b':g24>=3?'#ff9f43':'var(--muted)'}">${g24}</td>
+      <td style="max-width:160px;white-space:normal;font-size:11px;color:var(--muted)">${p.injury_type_history||'—'}</td>
+      <td><strong style="color:${msC}">${ms||'—'}</strong></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderSafeCore(){
+  const safe=board.filter(p=>p.injury_risk_score<=3.0&&p.floor_score_v2>=65)
+    .sort((a,b)=>b.master_score-a.master_score).slice(0,12);
+  document.getElementById('safeCoreList').innerHTML=safe.map((p,i)=>{
+    const ms=p.master_score;
+    const msC=ms>=85?'var(--qb)':ms>=75?'var(--gem)':'var(--boost)';
+    return `<div class="safe-core-card" style="cursor:pointer" onclick="go('master')">
+      <div><span style="color:var(--muted);font-size:10px">#${i+1} </span><strong>${p.player}</strong> ${posBadge(p.pos)} <span style="color:var(--muted);font-size:11px">${p.team}</span></div>
+      <div style="text-align:right">
+        <div style="color:${msC};font-weight:700;font-size:15px">${ms}</div>
+        <div style="font-size:10px;color:var(--gem)">🛡 ${p.injury_risk_score}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB 4 — IDP BOARD
+// ═══════════════════════════════════════════════════════════
+let _iPos='ALL', _iSort={col:'proj_fppg',dir:-1};
+
+function setIPill(pos,el){
+  _iPos=pos;
+  document.querySelectorAll('[id^="ip-"]').forEach(e=>e.classList.remove('on'));
+  el.classList.add('on');
+  renderIDP();
+}
+function sortIDP(col){
+  if(_iSort.col===col)_iSort.dir*=-1; else _iSort={col,dir:-1};
+  renderIDP();
+}
+
+function renderIDP(){
+  const q=(document.getElementById('idpQ')?.value||'').toLowerCase();
+  const numC=['proj_fppg','proj_sacks','proj_solo_tackles','proj_ints','proj_tfl','age'];
+  const data=idpData.filter(p=>{
+    if(_iPos!=='ALL'&&p.pos!==_iPos) return false;
+    if(q&&!p.player.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b)=>{
+    let av=a[_iSort.col],bv=b[_iSort.col];
+    if(numC.includes(_iSort.col)){av=+av||0;bv=+bv||0;}
+    return av<bv?_iSort.dir:av>bv?-_iSort.dir:0;
+  });
+
+  const maxFppg=Math.max(...idpData.map(p=>p.proj_fppg),1);
+  // top 3 hero cards
+  const top3=idpData.slice().sort((a,b)=>b.proj_fppg-a.proj_fppg).slice(0,3);
+  document.getElementById('idpTop').innerHTML=top3.map(p=>{
+    const tier=p.idp_tier?.toLowerCase()||'';
+    const badge=tier.includes('elite')?'🔥 Elite':tier.includes('solid')?'✅ Solid':'📦 Stash';
+    return `<div class="idp-hero">
+      <div style="font-weight:700;font-size:14px">${p.player}</div>
+      <div style="font-size:11px;color:var(--muted);margin:2px 0">${p.pos} · ${p.team} · Age ${p.age}</div>
+      <div class="idp-fppg">${p.proj_fppg}</div>
+      <div style="font-size:10px;color:var(--muted)">proj FPPG</div>
+      <div style="margin-top:5px;background:rgba(255,159,67,.15);color:var(--idp);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;display:inline-block">${badge}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('idpBody').innerHTML=data.map(p=>{
+    const pct=Math.round(p.proj_fppg/maxFppg*100);
+    const tier=p.idp_tier?.toLowerCase()||'';
+    const badge=tier.includes('elite')?'<span style="background:rgba(255,159,67,.2);color:var(--idp);padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700">🔥 Elite</span>':
+      tier.includes('solid')?'<span style="background:rgba(76,175,80,.15);color:var(--gem);padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700">✅ Solid</span>':
+      tier.includes('stash')?'<span style="background:rgba(0,180,216,.15);color:var(--boost);padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700">📦 Stash</span>':
+      '<span style="color:var(--bust);font-size:10px">🚫 Bust</span>';
+    const tradeNote=p.player.includes('Garrett')?'<span style="font-size:9px;color:var(--idp)"> →LAR</span>':p.player.includes('Verse')?'<span style="font-size:9px;color:var(--gem)"> →CLE 💎</span>':'';
     return `<tr>
-      <td>${fppgDisplay}</td>
+      <td>
+        <div class="sbar-wrap">
+          <strong style="color:var(--idp);min-width:32px">${p.proj_fppg}</strong>
+          <div class="sbar-track" style="width:70px"><div class="sbar-fill" style="width:${pct}%;background:var(--idp)"></div></div>
+        </div>
+      </td>
       <td>${p.player}${tradeNote}</td>
-      <td><span class="badge-pos pos-EDGE">${p.pos}</span></td>
+      <td>${posBadge(p.pos)}</td>
       <td>${p.team}</td>
       <td>${p.age}</td>
       <td>${p.proj_sacks}</td>
       <td>${p.proj_solo_tackles}</td>
       <td>${p.proj_ints}</td>
       <td>${p.proj_tfl}</td>
-      <td><span class="badge-round">${p.draft_round_target}</span></td>
-      <td><span class="${tierBadge}">${tierEmoji}</span></td>
+      <td><span class="rnd-badge">${p.draft_round_target}</span></td>
+      <td>${badge}</td>
     </tr>`;
   }).join('');
-
-  document.querySelectorAll('#idpTable th').forEach(th => {
-    const col = th.dataset.col;
-    th.classList.toggle('sorted', col === idpSort.col);
-    const arrow = th.querySelector('.sort-arrow');
-    if (arrow && col === idpSort.col) arrow.textContent = idpSort.dir === 1 ? '▲' : '▼';
-    else if (arrow) arrow.textContent = '▼';
-  });
 }
 
 // ═══════════════════════════════════════════════════════════
-// VEGAS OVERLAY
+// TAB 5 — VEGAS OVERLAY
 // ═══════════════════════════════════════════════════════════
-let _vegasFlagFilter = 'ALL';
-function setVegasFilter(flag, btn) {
-  _vegasFlagFilter = flag;
-  document.querySelectorAll('#tab-vegas .filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+let _vFlag='ALL', _vSort={col:'win_total',dir:-1};
+
+function setVPill(f,el){
+  _vFlag=f;
+  document.querySelectorAll('[id^="vp-"]').forEach(e=>e.classList.remove('on'));
+  el.classList.add('on');
+  renderVegas();
+}
+function sortVegas(col){
+  if(_vSort.col===col)_vSort.dir*=-1; else _vSort={col,dir:-1};
   renderVegas();
 }
 
-function sortVegas(col) {
-  if (vegasSort.col === col) vegasSort.dir *= -1;
-  else { vegasSort.col = col; vegasSort.dir = 1; }
-  renderVegas();
+function buildVegasCards(){
+  const teamMap={};
+  vegasData.forEach(p=>{
+    if(!teamMap[p.team])teamMap[p.team]={team:p.team,win_total:p.win_total,flag:p.vegas_flag,count:0};
+    teamMap[p.team].count++;
+  });
+  const teams=Object.values(teamMap).sort((a,b)=>b.win_total-a.win_total);
+  document.getElementById('vegasCards').innerHTML=teams.filter(t=>t.flag==='BOOST'||t.flag==='FADE').slice(0,14).map(t=>`
+    <div class="vcard ${t.flag==='BOOST'?'boost':t.flag==='FADE'?'fade':''}">
+      <div style="font-weight:700;font-size:12px">${t.team}</div>
+      <div class="vwt">${t.win_total}</div>
+      <div style="font-size:10px;color:var(--muted)">${t.flag} · ${t.count} players</div>
+    </div>`).join('');
 }
 
-function buildVegasTeamCards() {
-  const teamMap = {};
-  vegasData.forEach(p => {
-    if (!teamMap[p.team]) teamMap[p.team] = {team:p.team, win_total:p.win_total, flag:p.vegas_flag};
-  });
-  const teams = Object.values(teamMap).sort((a,b) => b.win_total - a.win_total);
-  const boostTeams = teams.filter(t => t.flag === 'BOOST');
-  const fadeTeams = teams.filter(t => t.flag === 'FADE');
-
-  let html = '';
-  [...boostTeams, ...fadeTeams].slice(0, 12).forEach(t => {
-    const cls = t.flag === 'BOOST' ? 'boost' : t.flag === 'FADE' ? 'fade' : '';
-    html += `<div class="vegas-card ${cls}">
-      <div class="team-name">${t.team}</div>
-      <div class="win-total">${t.win_total}</div>
-      <div style="font-size:11px;color:var(--muted)">${t.flag}</div>
-    </div>`;
-  });
-  document.getElementById('vegasTeamCards').innerHTML = html;
-}
-
-function renderVegas() {
-  const q = (document.getElementById('vegasSearch')?.value || '').toLowerCase();
-  const data = vegasData.filter(p => {
-    if (_vegasFlagFilter !== 'ALL' && p.vegas_flag !== _vegasFlagFilter) return false;
-    if (q && !p.player.toLowerCase().includes(q) && !(p.team||'').toLowerCase().includes(q)) return false;
+function renderVegas(){
+  const q=(document.getElementById('vegQ')?.value||'').toLowerCase();
+  const numC=['win_total'];
+  const data=vegasData.filter(p=>{
+    if(_vFlag!=='ALL'&&p.vegas_flag!==_vFlag) return false;
+    if(q&&!p.player?.toLowerCase().includes(q)&&!p.team?.toLowerCase().includes(q)) return false;
     return true;
-  }).sort((a,b) => {
-    let av = a[vegasSort.col], bv = b[vegasSort.col];
-    if (vegasSort.col === 'win_total') { av=+av; bv=+bv; }
-    if (av < bv) return -vegasSort.dir;
-    if (av > bv) return vegasSort.dir;
-    return 0;
+  }).sort((a,b)=>{
+    let av=a[_vSort.col],bv=b[_vSort.col];
+    if(numC.includes(_vSort.col)){av=+av||0;bv=+bv||0;}
+    return av<bv?_vSort.dir:av>bv?-_vSort.dir:0;
   });
 
-  document.getElementById('vegasBody').innerHTML = data.map(p => {
-    let badge;
-    if (p.vegas_flag === 'BOOST') badge = '<span class="boost-badge">🚀 BOOST</span>';
-    else if (p.vegas_flag === 'FADE') badge = '<span class="fade-badge">📉 FADE</span>';
-    else badge = '<span class="neutral-badge">NEUTRAL</span>';
-    return `<tr>
+  document.getElementById('vegasBody').innerHTML=data.map(p=>{
+    const rowS=p.vegas_flag==='BOOST'?'background:rgba(0,180,216,.05)':p.vegas_flag==='FADE'?'background:rgba(255,107,107,.05)':'';
+    const badge=p.vegas_flag==='BOOST'?'<span style="color:var(--boost);font-weight:700">🚀 BOOST</span>':p.vegas_flag==='FADE'?'<span style="color:var(--bust);font-weight:700">📉 FADE</span>':'<span style="color:var(--muted)">NEUTRAL</span>';
+    // lookup pos from board
+    const bd=board.find(b=>b.player===p.player);
+    return `<tr style="${rowS}">
       <td>${p.player}</td>
+      <td>${bd?posBadge(bd.pos):'—'}</td>
       <td>${p.team}</td>
       <td><strong>${p.win_total}</strong></td>
       <td>${badge}</td>
-      <td style="max-width:240px;white-space:normal;font-size:11px;color:var(--muted)">${p.context_note||''}</td>
+      <td style="max-width:220px;white-space:normal;font-size:11px;color:var(--muted)">${p.context_note||''}</td>
     </tr>`;
   }).join('');
-
-  document.querySelectorAll('#vegasTable th').forEach(th => {
-    const col = th.dataset.col;
-    th.classList.toggle('sorted', col === vegasSort.col);
-    const arrow = th.querySelector('.sort-arrow');
-    if (arrow && col === vegasSort.col) arrow.textContent = vegasSort.dir === 1 ? '▲' : '▼';
-    else if (arrow) arrow.textContent = '▼';
-  });
 }
 
 // ═══════════════════════════════════════════════════════════
-// LIVE TRACKER
+// TAB 6 — ROUND GUIDE
 // ═══════════════════════════════════════════════════════════
-const NEEDS = ['QB','QB','RB','RB','WR','WR','TE','IDP','IDP','IDP','FLEX','FLEX'];
-const ROSTER_SLOTS = [
-  {label:'QB1',pos:'QB'},{label:'QB2',pos:'QB'},
-  {label:'RB1',pos:'RB'},{label:'RB2',pos:'RB'},
-  {label:'WR1',pos:'WR'},{label:'WR2',pos:'WR'},
-  {label:'TE1',pos:'TE'},
-  {label:'FLEX1',pos:'FLEX'},{label:'FLEX2',pos:'FLEX'},
-  {label:'IDP1',pos:'IDP'},{label:'IDP2',pos:'IDP'},{label:'IDP3',pos:'IDP'},
+function renderRounds(){
+  if(!roundMD){ document.getElementById('roundsContent').innerHTML='<div class="info">round_report.md not found.</div>'; return; }
+  const blocks=roundMD.split(/\n(?=## ROUND )/);
+  let html='';
+  blocks.forEach(block=>{
+    const rndMatch=block.match(/## ROUND (\d+)/);
+    if(!rndMatch) return;
+    const rnd=+rndMatch[1];
+    const adpMatch=block.match(/\*\*ADP Range:\*\*\s*(.+)/);
+    const adpTxt=adpMatch?adpMatch[1]:'';
+    const phase=rnd<=4?`<span class="phase-badge phase-safe">🟢 SAFE PHASE</span>`:rnd<=8?`<span class="phase-badge phase-ceil">🎰 CEILING PHASE</span>`:`<span class="phase-badge phase-taxi">🔮 TAXI PHASE</span>`;
+
+    // parse gems
+    const gemBlock=block.match(/\*\*TOP GEMS.*?:\*\*\n([\s\S]*?)(?=\*\*BUSTS|\*\*POSITIONAL|---|\n##)/);
+    const gemLines=(gemBlock?gemBlock[1]:'').match(/\d+\.\s+\*\*([^*]+)\*\*.+?(?=\n\d+\.|$)/gs)||[];
+    const gems=gemLines.slice(0,4).map(l=>{
+      const nm=l.match(/\*\*([^*]+)\*\*/)?.[1]||'';
+      const why=l.replace(/\*\*/g,'').replace(/^\d+\.\s*/,'').replace(nm,'').replace(/^,?\s*—\s*/,'').slice(0,80);
+      return {name:nm,why};
+    });
+
+    const bustBlock=block.match(/\*\*BUSTS.*?:\*\*\n([\s\S]*?)(?=\*\*POSITIONAL|---|\n##)/);
+    const bustLines=(bustBlock?bustBlock[1]:'').match(/\d+\.\s+\*\*([^*]+)\*\*.+?(?=\n\d+\.|$)/gs)||[];
+    const busts=bustLines.slice(0,3).map(l=>{
+      const nm=l.match(/\*\*([^*]+)\*\*/)?.[1]||'';
+      const why=l.replace(/\*\*/g,'').replace(/^\d+\.\s*/,'').replace(nm,'').replace(/^,?\s*—\s*/,'').slice(0,70);
+      return {name:nm,why};
+    });
+
+    const posNote=block.match(/\*\*POSITIONAL NOTE:\*\*\s*(.+)/)?.[1]||'';
+
+    html+=`<details open>
+      <summary>ROUND ${rnd} &nbsp;&nbsp; <span style="color:var(--muted);font-size:11px;font-weight:400">${adpTxt}</span> &nbsp; ${phase}</summary>
+      <div class="round-body">
+        ${gems.length?`<div class="section-lbl" style="margin-top:8px">💎 Gems</div><div class="rnd-pills">${gems.map(g=>`<span class="gem-pill" title="${g.why}">💎 ${g.name}</span>`).join('')}</div>`:''}
+        ${busts.length?`<div class="section-lbl">💀 Busts / Fades</div><div class="rnd-pills">${busts.map(b=>`<span class="bust-pill" title="${b.why}">💀 ${b.name}</span>`).join('')}</div>`:''}
+        ${posNote?`<div style="font-size:12px;color:var(--muted);font-style:italic;margin-top:6px">📌 ${posNote}</div>`:''}
+      </div>
+    </details>`;
+  });
+  document.getElementById('roundsContent').innerHTML=html||'<div class="info">No round data found in markdown.</div>';
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB 7 — LIVE DRAFT TRACKER
+// ═══════════════════════════════════════════════════════════
+let DS={allPicks:[],myPicks:[],drafted:new Set(),
+  roster:{QB:[],RB:[],WR:[],TE:[],IDP:[],K:[],FLEX:[],BENCH:[],TAXI:[]},
+  pickNum:0, roundNum:1};
+
+const SLOTS=[
+  {l:'QB1',p:'QB'},{l:'QB2',p:'QB'},
+  {l:'RB1',p:'RB'},{l:'RB2',p:'RB'},
+  {l:'WR1',p:'WR'},{l:'WR2',p:'WR'},
+  {l:'TE1',p:'TE'},
+  {l:'FLEX1',p:'FLEX'},{l:'FLEX2',p:'FLEX'},
+  {l:'IDP1',p:'IDP'},{l:'IDP2',p:'IDP'},{l:'IDP3',p:'IDP'},
 ];
 
-// ═══════════════════════════════════════════════════════════
-// INJURY & RISK TAB
-// ═══════════════════════════════════════════════════════════
-function setRiskFilter(f, btn) {
-  riskFilter = f;
-  document.querySelectorAll('#tab-injury .filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderInjuryTable();
+function initDraftState(){renderDraftPanel();}
+
+function renderDraftPanel(){
+  renderNeeds(); renderRoster(); renderAvail();
+  document.getElementById('draftAlerts').innerHTML='';
 }
 
-function sortInjury(col) {
-  if (injurySort.col === col) injurySort.dir *= -1;
-  else { injurySort.col = col; injurySort.dir = col==='master_score'?-1:1; }
-  // update dir for risk: default desc
-  if (col==='injury_risk_score') injurySort.dir = -1;
-  renderInjuryTable();
+function parsePick(line){
+  line=line.trim(); if(!line) return null;
+  const teamM=line.match(/\[([^\]]+)\]/);
+  const isMe=teamM&&['me','ME','Me'].includes(teamM[1].trim());
+  const clean=line.replace(/\[[^\]]+\]/,'').trim();
+  const pickM=clean.match(/^(\d+\.\d+)\s+(.+)/);
+  let rest=pickM?pickM[2]:clean;
+  const tokens=rest.split(/\s+/);
+  const POS=['QB','RB','WR','TE','K','EDGE','LB','DB','DL','S','CB','DE','DT'];
+  let nflTeam='',pos='';
+  if(tokens.length>=2&&tokens[tokens.length-1].length<=3&&tokens[tokens.length-1]===tokens[tokens.length-1].toUpperCase()&&!/^\d/.test(tokens[tokens.length-1]))
+    nflTeam=tokens.pop();
+  if(tokens.length>=2&&POS.includes(tokens[tokens.length-1].toUpperCase()))
+    pos=tokens.pop().toUpperCase();
+  const playerName=tokens.join(' ').replace(/^\d+\.\d+\s*/,'').trim();
+  return {pickStr:pickM?pickM[1]:String(++DS.pickNum), player:playerName, pos, team:nflTeam, isMe};
 }
 
-function riskTierKey(tier) {
-  if (!tier) return 0;
-  if (tier.includes('DANGER'))   return 5;
-  if (tier.includes('HIGH'))     return 4;
-  if (tier.includes('ELEVATED')) return 3;
-  if (tier.includes('MODERATE')) return 2;
-  return 1;
-}
-
-function riskColor(risk) {
-  const r = +risk||0;
-  if (r <= 2.5) return 'rgba(76,175,80,.12)';
-  if (r <= 4.9) return 'rgba(255,215,0,.08)';
-  if (r <= 6.9) return 'rgba(255,159,67,.10)';
-  if (r <= 8.9) return 'rgba(255,107,107,.12)';
-  return 'rgba(180,0,0,.18)';
-}
-
-function riskBarHtml(risk) {
-  const r = +risk||0;
-  const pct = Math.round(r/10*100);
-  const color = r<=2.5?'#4CAF50':r<=4.9?'#FFD700':r<=6.9?'#ff9f43':r<=8.9?'#ff6b6b':'#cc0000';
-  return `<div style="display:flex;align-items:center;gap:6px">
-    <strong style="color:${color};min-width:28px">${r}</strong>
-    <div style="width:60px;height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden">
-      <div style="width:${pct}%;height:100%;background:${color};border-radius:3px"></div>
-    </div>
-  </div>`;
-}
-
-function renderInjuryTab() {
-  if (!boardData.length) return;
-  // Warning banner
-  const highRisk = boardData.filter(p => (+p.injury_risk_score||0) >= 7.0);
-  const el = document.getElementById('injuryWarningBanner');
-  if (el && highRisk.length > 0) {
-    el.innerHTML = `<div class="alert-banner" style="font-size:13px">
-      ${highRisk.length} player(s) on the board are 🔴 HIGH RISK or above:
-      ${highRisk.map(p=>`<strong>${p.player}</strong> (${p.injury_risk_score})`).join(', ')}
-      — review before committing draft capital.
-    </div>`;
-  }
-  renderInjuryTable();
-  renderSafeCore();
-}
-
-function renderInjuryTable() {
-  const numCols = ['injury_risk_score','games_missed_2025','games_missed_2024','master_score'];
-  const tierOrder = {'ALL':0,'LOW':1,'MODERATE':2,'ELEVATED':3,'HIGH':4};
-  const data = boardData.filter(p => {
-    const t = p.injury_risk_tier||'';
-    if (riskFilter === 'ALL') return true;
-    if (riskFilter === 'LOW')      return t.includes('LOW');
-    if (riskFilter === 'MODERATE') return t.includes('MODERATE');
-    if (riskFilter === 'ELEVATED') return t.includes('ELEVATED');
-    if (riskFilter === 'HIGH')     return t.includes('HIGH')||t.includes('DANGER');
-    return true;
-  }).filter(p => p.injury_risk_score !== '').sort((a,b) => {
-    let av = a[injurySort.col], bv = b[injurySort.col];
-    if (numCols.includes(injurySort.col)) { av=+av||0; bv=+bv||0; }
-    if (av < bv) return -injurySort.dir;
-    if (av > bv) return injurySort.dir;
-    return 0;
-  });
-
-  const posClass = p => posIsIDP(p.pos)?'pos-EDGE':`pos-${p.pos}`;
-  document.getElementById('injuryBody').innerHTML = data.map(p => {
-    const r = +p.injury_risk_score||0;
-    const ms = +p.master_score||0;
-    const msColor = ms>=85?'var(--qb)':ms>=75?'var(--gem)':ms>=65?'var(--boost)':ms>=55?'var(--idp)':'var(--muted)';
-    const gm25 = +p.games_missed_2025||0;
-    const gm24 = +p.games_missed_2024||0;
-    return `<tr style="background:${riskColor(r)}">
-      <td style="cursor:pointer;font-weight:600" onclick="showScorecard('${p.player.replace(/'/g,"\\'")}',this)">${p.player} <span style="font-size:10px;color:var(--muted)">▼</span></td>
-      <td><span class="badge-pos ${posClass(p)}">${p.pos}</span></td>
-      <td>${riskBarHtml(r)}</td>
-      <td style="font-size:12px">${p.injury_risk_tier||'—'}</td>
-      <td style="color:${gm25>=5?'#ff6b6b':gm25>=3?'#ff9f43':'var(--muted)'}">${gm25||0}</td>
-      <td style="color:${gm24>=5?'#ff6b6b':gm24>=3?'#ff9f43':'var(--muted)'}">${gm24||0}</td>
-      <td style="max-width:180px;white-space:normal;font-size:11px;color:var(--muted)">${p.injury_type_history||'—'}</td>
-      <td><strong style="color:${msColor}">${ms||'—'}</strong></td>
-    </tr>`;
-  }).join('');
-
-  document.querySelectorAll('#injuryTable th').forEach(th => {
-    const col = th.dataset.col;
-    const arr = th.querySelector('.sort-arrow');
-    if (arr) arr.textContent = col===injurySort.col?(injurySort.dir===1?'▲':'▼'):'▼';
-  });
-}
-
-function renderSafeCore() {
-  const safe = boardData
-    .filter(p => (+p.injury_risk_score||10) <= 3.0 && (+p.floor_score_v2||+p.floor_score||0) >= 65)
-    .sort((a,b) => (+b.master_score||0)-(+a.master_score||0))
-    .slice(0,12);
-
-  const posClass = p => posIsIDP(p.pos)?'pos-EDGE':`pos-${p.pos}`;
-  document.getElementById('safeCoreList').innerHTML = safe.map((p,i) => {
-    const ms = +p.master_score||0;
-    const msColor = ms>=85?'var(--qb)':ms>=75?'var(--gem)':'var(--boost)';
-    return `<div style="background:rgba(76,175,80,.06);border:1px solid rgba(76,175,80,.2);border-radius:6px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <span style="font-size:11px;color:var(--muted)">#${i+1} </span>
-        <strong style="font-size:13px">${p.player}</strong>
-        <span class="badge-pos ${posClass(p)}" style="margin-left:6px">${p.pos}</span>
-        <span style="font-size:10px;color:var(--muted);margin-left:4px">${p.team}</span>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:14px;font-weight:700;color:${msColor}">${ms}</div>
-        <div style="font-size:10px;color:#4CAF50">🛡 Risk: ${p.injury_risk_score}</div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ─── Full Player Scorecard (click-to-expand) ──────────────────────────────
-let _activeScorecardRow = null;
-
-function showScorecard(playerName, clickedTd) {
-  const tr = clickedTd.closest('tr');
-  // Toggle off if same player
-  if (_activeScorecardRow && _activeScorecardRow.previousSibling === tr) {
-    _activeScorecardRow.remove(); _activeScorecardRow = null; return;
-  }
-  if (_activeScorecardRow) { _activeScorecardRow.remove(); _activeScorecardRow = null; }
-
-  const p = boardData.find(d => d.player === playerName);
-  if (!p) return;
-
-  const eff = buildEffSummary(p);
-  const ms = +p.master_score||0;
-  const msColor = ms>=85?'var(--qb)':ms>=75?'var(--gem)':ms>=65?'var(--boost)':ms>=55?'var(--idp)':'var(--muted)';
-  const r = +p.injury_risk_score||0;
-  const rColor = r<=2.5?'#4CAF50':r<=4.9?'#FFD700':r<=6.9?'#ff9f43':r<=8.9?'#ff6b6b':'#cc0000';
-
-  function bar(val, max, color) {
-    const pct = Math.min(100, Math.round(val/max*100));
-    return `<div style="flex:1;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden">
-      <div style="width:${pct}%;height:100%;background:${color};border-radius:3px"></div>
-    </div>`;
-  }
-  function metricRow(icon, label, val, max, color) {
-    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">
-      <span style="width:16px">${icon}</span>
-      <span style="color:var(--muted);width:100px;flex-shrink:0">${label}</span>
-      ${bar(val,max,color)}
-      <strong style="width:42px;text-align:right;color:${color}">${val}</strong>
-    </div>`;
-  }
-
-  const html = `
-    <div style="background:#0d1827;border:1px solid rgba(0,180,216,.3);border-radius:8px;padding:14px;margin:4px 0">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-        <span style="font-size:15px;font-weight:700">${p.gem_flag==1?'💎 ':''}${p.player}</span>
-        <span class="badge-pos pos-${posIsIDP(p.pos)?'EDGE':p.pos}">${p.pos}</span>
-        <span style="color:var(--muted)">${p.team}</span>
-        <span style="color:var(--muted)">Age ${p.age}</span>
-        ${p.bust_flag==1?'<span style="color:var(--bust);font-weight:700">💀 BUST FLAG</span>':''}
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px">
-        <div>
-          ${metricRow('🎯','Proj 2026',+p.proj_pts_2026||0,420,'var(--boost)')}
-          ${metricRow('⬆️','Ceiling',+p.ceiling_score||0,100,'var(--gem)')}
-          ${metricRow('⬇️','Floor v2',+p.floor_score_v2||+p.floor_score||0,100,'#6ee7b7')}
-          ${metricRow('🔮','Future Val',+p.future_value||0,100,'var(--idp)')}
-          ${p.vorp_adjusted>0?metricRow('📈','VORP',+p.vorp_adjusted||0,300,'var(--boost)'):''}
-          ${p.vorp_2qb_adjusted?metricRow('⚡','2QB VORP',+p.vorp_2qb_adjusted||0,120,'var(--qb)'):''}
-        </div>
-        <div>
-          <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
-            <span style="font-size:12px;color:var(--muted)">🩹 Injury Risk</span>
-            <div style="flex:1;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden">
-              <div style="width:${r*10}%;height:100%;background:${rColor};border-radius:3px"></div>
-            </div>
-            <strong style="color:${rColor}">${r}</strong>
-            <span style="font-size:11px">${p.injury_risk_tier||''}</span>
-          </div>
-          ${metricRow('⭐','Master Score',ms,100,msColor)}
-          ${p.games_missed_2025!=null&&p.games_missed_2025!==''?`<div style="font-size:11px;color:var(--muted);padding:2px 0">Games missed: 2025=${p.games_missed_2025||0} / 2024=${p.games_missed_2024||0}</div>`:''}
-          ${p.injury_type_history?`<div style="font-size:11px;color:var(--muted);padding:2px 0">History: ${p.injury_type_history}</div>`:''}
-          ${p.games_played_pct_career?`<div style="font-size:11px;color:var(--muted)">Career GP%: ${p.games_played_pct_career}%</div>`:''}
-        </div>
-      </div>
-      ${eff?`<div style="border-top:1px solid rgba(255,255,255,.08);padding-top:8px;margin-top:4px">
-        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📊 Efficiency (2025)</div>
-        <div style="font-size:12px;color:var(--text)">${eff}</div>
-      </div>`:''}
-      ${p.cliff&&p.cliff!=='false'?`<div style="margin-top:8px;padding:6px 10px;background:rgba(255,59,59,.1);border-radius:4px;font-size:12px;color:${p.cliff==='MAJOR'?'#ff3b3b':'#ff9f43'};font-weight:700">
-        ${p.cliff==='MAJOR'?'🚨':'⚠️'} Last player before ${p.pos} ${p.cliff} CLIFF — Draft now or miss the window
-      </div>`:''}
-    </div>`;
-
-  const newTr = document.createElement('tr');
-  const td = document.createElement('td');
-  td.setAttribute('colspan','8');
-  td.innerHTML = html;
-  newTr.appendChild(td);
-  tr.insertAdjacentElement('afterend', newTr);
-  _activeScorecardRow = newTr;
-}
-
-function buildEffSummary(p) {
-  const parts = [];
-  if (p.snap_pct)              parts.push(`Snap: <strong>${p.snap_pct}%</strong>`);
-  if (p.target_share)          parts.push(`Tgt Share: <strong>${p.target_share}%</strong>`);
-  if (p.cpoe)                  parts.push(`CPOE: <strong>${+p.cpoe>0?'+':''}${p.cpoe}%</strong>`);
-  if (p.air_yards_per_att)     parts.push(`AY/att: <strong>${p.air_yards_per_att}</strong>`);
-  if (p.pressure_rate_faced)   parts.push(`Pressure: <strong>${p.pressure_rate_faced}%</strong>`);
-  if (p.opportunity_share)     parts.push(`Opp Share: <strong>${p.opportunity_share}%</strong>`);
-  if (p.yac_per_carry)         parts.push(`YAC/carry: <strong>${p.yac_per_carry}</strong>`);
-  if (p.broken_tackle_rate)    parts.push(`BTR: <strong>${p.broken_tackle_rate}%</strong>`);
-  if (p.separation)            parts.push(`Sep: <strong>${p.separation}</strong>`);
-  if (p.yprt)                  parts.push(`YPRT: <strong>${p.yprt}</strong>`);
-  if (p.snap_pct_def)          parts.push(`D-Snap: <strong>${p.snap_pct_def}%</strong>`);
-  if (p.pressure_rate_pass_rush) parts.push(`PR: <strong>${p.pressure_rate_pass_rush}%</strong>`);
-  if (p.pass_rush_win_rate)    parts.push(`PRWR: <strong>${p.pass_rush_win_rate}%</strong>`);
-  if (p.tackle_rate)           parts.push(`Tkl Rate: <strong>${p.tackle_rate}%</strong>`);
-  return parts.length ? parts.join(' &nbsp;|&nbsp; ') : null;
-}
-
-// ─── Also hook scorecard to draft board table ──────────────────────────────
-function boardScorecard(playerName, btn) {
-  const tr = btn.closest('tr');
-  const existingCard = tr.nextSibling;
-  if (existingCard && existingCard._isScorecard) {
-    existingCard.remove(); btn.textContent = '▼'; return;
-  }
-  btn.textContent = '▲';
-  const p = boardData.find(d=>d.player===playerName);
-  if (!p) return;
-
-  const eff = buildEffSummary(p);
-  const ms = +p.master_score||0;
-  const msColor = ms>=85?'var(--qb)':ms>=75?'var(--gem)':ms>=65?'var(--boost)':'var(--muted)';
-  const r = +p.injury_risk_score||0;
-  const rColor = r<=2.5?'#4CAF50':r<=4.9?'#FFD700':r<=6.9?'#ff9f43':'#ff6b6b';
-  const colCount = document.querySelector('#boardTable thead tr')?.children?.length || 11;
-
-  const card = document.createElement('tr');
-  card._isScorecard = true;
-  const td = document.createElement('td');
-  td.colSpan = colCount;
-  td.style.padding = '0 12px 8px';
-  td.innerHTML = `<div style="background:#0d1827;border:1px solid rgba(0,180,216,.25);border-radius:6px;padding:12px;font-size:12px">
-    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:8px">
-      <span>⭐ <strong style="color:${msColor}">${ms}</strong> master</span>
-      <span>🩹 <strong style="color:${rColor}">${r}</strong> ${p.injury_risk_tier||''}</span>
-      ${p.proj_pts_2026?`<span>🎯 <strong>${p.proj_pts_2026}</strong> proj pts</span>`:''}
-      ${p.ceiling_score?`<span>⬆️ <strong>${p.ceiling_score}</strong> ceil</span>`:''}
-      ${p.floor_score_v2?`<span>⬇️ <strong>${p.floor_score_v2}</strong> floor v2</span>`:''}
-      ${p.vorp_adjusted>0?`<span>📈 VORP <strong>+${p.vorp_adjusted}</strong></span>`:''}
-    </div>
-    ${eff?`<div style="color:var(--muted)">${eff}</div>`:''}
-    ${p.injury_type_history&&p.injury_type_history!=='None noted'?`<div style="color:#ff9f43;margin-top:4px">🩹 ${p.injury_type_history}</div>`:''}
-  </div>`;
-  card.appendChild(td);
-  tr.insertAdjacentElement('afterend', card);
-}
-
-function initTracker() {
-  renderRoster();
-  renderNeeds();
-  renderAvailable();
-}
-
-function parsePick(line) {
-  line = line.trim();
-  if (!line) return null;
-  // Format: 1.03 Josh Allen QB BUF [me]
-  const teamMatch = line.match(/\[([^\]]+)\]/);
-  const isMe = teamMatch && ['me','ME','Me'].includes(teamMatch[1].trim());
-  const clean = line.replace(/\[[^\]]+\]/, '').trim();
-  // Try to extract pick number, player name, pos, team
-  const pickMatch = clean.match(/^(\d+\.\d+)\s+(.+)/);
-  let playerPart = pickMatch ? pickMatch[2] : clean;
-  // last token is likely NFL team (2-3 chars uppercase), second-to-last is pos
-  const tokens = playerPart.split(/\s+/);
-  let pos = '', nflTeam = '';
-  const posList = ['QB','RB','WR','TE','K','EDGE','LB','DB','DL','S','CB','DE','DT'];
-  // scan from end
-  if (tokens.length >= 2 && tokens[tokens.length-1].length <= 3 && tokens[tokens.length-1] === tokens[tokens.length-1].toUpperCase()) {
-    nflTeam = tokens.pop();
-  }
-  if (tokens.length >= 2 && posList.includes(tokens[tokens.length-1].toUpperCase())) {
-    pos = tokens.pop().toUpperCase();
-  }
-  const playerName = tokens.join(' ').replace(/^\d+\.\d+\s+/, '').trim();
-  return { pickNum: pickMatch ? pickMatch[1] : String(++draftState.pickNumber), player: playerName, pos, team: nflTeam, isMe };
-}
-
-function processPicks() {
-  const raw = document.getElementById('pickInput').value;
-  const lines = raw.split('\n').filter(l => l.trim());
-  const newPicks = [];
-  lines.forEach(line => {
-    const pick = parsePick(line);
-    if (!pick || !pick.player) return;
-    if (draftState.drafted.has(pick.player.toLowerCase())) return;
-    draftState.drafted.add(pick.player.toLowerCase());
-    draftState.allPicks.push(pick);
-    if (pick.isMe) draftState.myPicks.push(pick);
+function processPicks(){
+  const raw=document.getElementById('pickInput').value;
+  const lines=raw.split('\n').filter(l=>l.trim());
+  const newPicks=[];
+  lines.forEach(line=>{
+    const pick=parsePick(line); if(!pick||!pick.player) return;
+    if(DS.drafted.has(pick.player.toLowerCase())) return;
+    DS.drafted.add(pick.player.toLowerCase());
+    DS.allPicks.push(pick);
+    if(pick.isMe){
+      DS.myPicks.push(pick);
+      const pos=pick.pos.toUpperCase();
+      if(pos==='QB') DS.roster.QB.push(pick.player);
+      else if(pos==='RB') DS.roster.RB.push(pick.player);
+      else if(pos==='WR') DS.roster.WR.push(pick.player);
+      else if(pos==='TE') DS.roster.TE.push(pick.player);
+      else if(['EDGE','LB','DB','DL','S','CB','DE','DT'].includes(pos)) DS.roster.IDP.push(pick.player);
+      else if(pos==='K') DS.roster.K.push(pick.player);
+      else DS.roster.FLEX.push(pick.player);
+    }
     newPicks.push(pick);
   });
-
-  // Rebuild roster from myPicks
-  ROSTER_SLOTS.forEach(s => s.filled = null);
-  const roster = {QB:[],RB:[],WR:[],TE:[],IDP:[],FLEX:[]};
-  draftState.myPicks.forEach(p => {
-    const pos = p.pos.toUpperCase();
-    if (['QB'].includes(pos)) roster.QB.push(p.player);
-    else if (['RB'].includes(pos)) roster.RB.push(p.player);
-    else if (['WR'].includes(pos)) roster.WR.push(p.player);
-    else if (['TE'].includes(pos)) roster.TE.push(p.player);
-    else if (['EDGE','LB','DB','DL','S','CB','DE','DT'].includes(pos)) roster.IDP.push(p.player);
-    else if (['K'].includes(pos)) roster.FLEX.push(p.player);
-    else roster.FLEX.push(p.player);
-  });
-  draftState.myRoster = roster;
-
-  document.getElementById('pickInput').value = '';
-  renderPickLog(newPicks);
-  renderRoster();
-  renderNeeds();
-  renderAvailable();
-  checkAlerts();
+  document.getElementById('pickInput').value='';
+  DS.roundNum=Math.ceil(DS.allPicks.length/10)||1;
+  addToLog(newPicks);
+  renderNeeds(); renderRoster(); renderAvail(); checkAlerts();
 }
 
-function renderPickLog(newPicks) {
-  const log = document.getElementById('pickLog');
-  newPicks.forEach(p => {
-    const div = document.createElement('div');
-    div.className = 'pick-log-entry' + (p.isMe ? ' my-pick' : '');
-    div.textContent = `${p.pickNum} ${p.player} ${p.pos} ${p.team}${p.isMe ? ' ← ME' : ''}`;
-    log.prepend(div);
+function undoLast(){
+  if(!DS.allPicks.length) return;
+  const last=DS.allPicks.pop();
+  DS.drafted.delete(last.player.toLowerCase());
+  if(last.isMe){
+    const idx=DS.myPicks.findIndex(p=>p.player===last.player);
+    if(idx>-1) DS.myPicks.splice(idx,1);
+    const pos=(last.pos||'').toUpperCase();
+    const bucket=pos==='QB'?DS.roster.QB:pos==='RB'?DS.roster.RB:pos==='WR'?DS.roster.WR:pos==='TE'?DS.roster.TE:
+      ['EDGE','LB','DB','DL','S','CB','DE','DT'].includes(pos)?DS.roster.IDP:DS.roster.FLEX;
+    const bi=bucket.indexOf(last.player); if(bi>-1) bucket.splice(bi,1);
+  }
+  document.getElementById('pickLog').innerHTML='';
+  DS.allPicks.forEach(p=>addToLog([p]));
+  renderNeeds(); renderRoster(); renderAvail(); checkAlerts();
+}
+
+function resetDraft(){
+  if(!confirm('Reset full draft?')) return;
+  DS={allPicks:[],myPicks:[],drafted:new Set(),
+    roster:{QB:[],RB:[],WR:[],TE:[],IDP:[],K:[],FLEX:[],BENCH:[],TAXI:[]},
+    pickNum:0,roundNum:1};
+  document.getElementById('pickLog').innerHTML='';
+  document.getElementById('draftAlerts').innerHTML='';
+  renderNeeds(); renderRoster(); renderAvail();
+}
+
+function addToLog(picks){
+  const log=document.getElementById('pickLog');
+  picks.forEach(p=>{
+    const d=document.createElement('div');
+    d.className='pl-row'+(p.isMe?' me':'');
+    d.textContent=`${p.pickStr} | ${p.player} | ${p.pos} | ${p.team} | ${p.isMe?'YOU ✅':'OPP'}`;
+    log.prepend(d);
   });
 }
 
-function renderRoster() {
-  const r = draftState.myRoster;
-  const slots = [
-    {label:'QB1',arr:r.QB,idx:0},{label:'QB2',arr:r.QB,idx:1},
-    {label:'RB1',arr:r.RB,idx:0},{label:'RB2',arr:r.RB,idx:1},
-    {label:'WR1',arr:r.WR,idx:0},{label:'WR2',arr:r.WR,idx:1},
-    {label:'TE1',arr:r.TE,idx:0},
-    {label:'FLEX1',arr:r.FLEX,idx:0},{label:'FLEX2',arr:r.FLEX,idx:1},
-    {label:'IDP1',arr:r.IDP,idx:0},{label:'IDP2',arr:r.IDP,idx:1},{label:'IDP3',arr:r.IDP,idx:2},
+function renderNeeds(){
+  const n=[
+    {l:'QB',h:DS.roster.QB.length,need:2},
+    {l:'RB',h:DS.roster.RB.length,need:2},
+    {l:'WR',h:DS.roster.WR.length,need:2},
+    {l:'TE',h:DS.roster.TE.length,need:1},
+    {l:'IDP',h:DS.roster.IDP.length,need:3},
+    {l:'FLEX',h:DS.roster.FLEX.length,need:2},
   ];
-  document.getElementById('rosterGrid').innerHTML = slots.map(s => {
-    const player = s.arr && s.arr[s.idx] ? s.arr[s.idx] : '';
-    return `<div class="roster-slot ${player ? 'slot-filled' : ''}">
-      <div class="slot-label">${s.label}</div>
-      <div class="slot-player">${player || '<span style="color:var(--muted)">—</span>'}</div>
+  document.getElementById('needsBar').innerHTML=n.map(x=>{
+    const pips=Array.from({length:x.need},(_,i)=>i<x.h?'✅':'⬜').join('');
+    return `<span class="need-pill ${x.h>=x.need?'need-met':'need-open'}">${x.l} ${pips}</span>`;
+  }).join('');
+}
+
+function renderRoster(){
+  document.getElementById('rosterGrid').innerHTML=SLOTS.map(s=>{
+    const bucket=s.p==='FLEX'?DS.roster.FLEX:s.p==='IDP'?DS.roster.IDP:DS.roster[s.p]||[];
+    const idx=SLOTS.filter(sl=>sl.p===s.p).indexOf(s);
+    const player=bucket[idx]||'';
+    return `<div class="rslot ${player?'filled':''}">
+      <div class="sl">${s.l}</div>
+      <div class="sp">${player||'—'}</div>
     </div>`;
   }).join('');
 }
 
-function renderNeeds() {
-  const r = draftState.myRoster;
-  const needs = [
-    {label:'QB',have:r.QB.length,need:2},
-    {label:'RB',have:r.RB.length,need:2},
-    {label:'WR',have:r.WR.length,need:2},
-    {label:'TE',have:r.TE.length,need:1},
-    {label:'IDP',have:r.IDP.length,need:3},
-    {label:'FLEX',have:r.FLEX.length,need:2},
-  ];
-  document.getElementById('needsBar').innerHTML = needs.map(n => {
-    const pips = Array.from({length:n.need},(_,i)=>i<n.have?'✅':'⬜').join('');
-    return `<div class="need-pill ${n.have>=n.need?'need-met':'need-open'}">${n.label} ${pips}</div>`;
+function renderAvail(){
+  const avail=board.filter(p=>!DS.drafted.has(p.player.toLowerCase()))
+    .sort((a,b)=>b.master_score-a.master_score).slice(0,5);
+  document.getElementById('availPanel').innerHTML=avail.map(p=>{
+    const falling=DS.roundNum>p.target_round;
+    return `<div class="avail-card ${falling?'falling':''}">
+      <div>
+        <strong style="font-size:12px">${p.player}</strong> ${posBadge(p.pos)}
+        ${falling?'<span style="color:var(--bust);font-size:10px"> ⚠️ falling</span>':''}
+      </div>
+      <div style="text-align:right">
+        <div style="color:var(--qb);font-weight:700">${p.master_score||'—'}</div>
+        <div style="font-size:10px;color:var(--muted)">R${p.target_round}</div>
+      </div>
+    </div>`;
   }).join('');
 }
 
-function renderAvailable() {
-  const available = boardData.filter(p => !draftState.drafted.has(p.player.toLowerCase()))
-    .sort((a,b) => a.my_rank - b.my_rank)
-    .slice(0, 20);
-
-  document.getElementById('availBody').innerHTML = available.map(p => {
-    const isGem = p.gem_flag == 1;
-    const isBust = p.bust_flag == 1;
-    const flag = isGem ? '<span class="gem-badge">💎</span>' : isBust ? '<span class="bust-badge">💀</span>' : '—';
-    const posClass = posIsIDP(p.pos) ? 'pos-EDGE' : `pos-${p.pos}`;
-    return `<tr class="${isGem?'gem-row':isBust?'bust-row':''}">
-      <td>${p.my_rank}</td>
-      <td>${p.player}</td>
-      <td><span class="badge-pos ${posClass}">${p.pos}</span></td>
-      <td>${p.team}</td>
-      <td>${p.age}</td>
-      <td><span class="badge-round">R${p.target_round}</span></td>
-      <td>${flag}</td>
-    </tr>`;
-  }).join('');
-}
-
-function checkAlerts() {
-  const container = document.getElementById('alertContainer');
-  const alerts = [];
-
-  // Check: QB run — 3+ QBs taken in recent picks
-  const recentQBs = draftState.allPicks.slice(-10).filter(p => p.pos === 'QB').length;
-  if (recentQBs >= 3) {
-    alerts.push(`QB RUN — ${recentQBs} QBs taken in last 10 picks. Grab one now or wait until Round ${Math.ceil((draftState.myPicks.filter(p=>p.pos==='QB').length>=2?99:draftState.allPicks.length/10)+3)}.`);
-  }
-
-  // Check: gems falling past target round
-  const totalPicks = draftState.allPicks.length;
-  const currentRound = Math.ceil(totalPicks / 10);
-  boardData.filter(p => p.gem_flag == 1).forEach(gem => {
-    if (!draftState.drafted.has(gem.player.toLowerCase()) && currentRound > gem.target_round) {
-      alerts.push(`${gem.player} still available — ${currentRound - gem.target_round} round(s) past target (R${gem.target_round}). Value alert.`);
-    }
-  });
-
+function checkAlerts(){
+  const alerts=[];
+  // QB run
+  const lastRndStart=Math.max(0,DS.allPicks.length-10);
+  const qbsThisRnd=DS.allPicks.slice(lastRndStart).filter(p=>p.pos==='QB').length;
+  if(qbsThisRnd>=3) alerts.push(`QB RUN — ${qbsThisRnd} QBs taken in last 10 picks. Grab one now.`);
+  // TE wasteland
+  const mcbGone=DS.drafted.has('trey mcbride'), bowersGone=DS.drafted.has('brock bowers');
+  if(mcbGone&&bowersGone&&!DS.roster.TE.length)
+    alerts.push('TE WASTELAND — McBride AND Bowers gone. Next best: Loveland (+84 TEP VORP). Must act now.');
   // QB gap
-  if (draftState.myPicks.length >= 15 && draftState.myRoster.QB.length === 0) {
-    alerts.push('QB GAP ALERT — No QB yet after 15 picks. Must address immediately.');
-  }
+  if(DS.allPicks.length>=15&&!DS.roster.QB.length)
+    alerts.push('QB GAP ALERT — No QB after 15 picks. Must address immediately.');
+  // Gems falling
+  board.filter(p=>p.gem_flag==1&&!DS.drafted.has(p.player.toLowerCase())&&DS.roundNum>p.target_round)
+    .forEach(p=>alerts.push(`VALUE ALERT: 💎 ${p.player} still available — ${DS.roundNum-p.target_round} round(s) past target (R${p.target_round})`));
 
-  container.innerHTML = alerts.map(a => `<div class="alert-banner">${a}</div>`).join('');
-}
-
-function resetTracker() {
-  if (!confirm('Reset entire draft tracker?')) return;
-  draftState = {allPicks:[],myPicks:[],drafted:new Set(),myRoster:{QB:[],RB:[],WR:[],TE:[],EDGE:[],LB:[],DB:[],DL:[],K:[],FLEX:[]},pickNumber:0};
-  document.getElementById('pickLog').innerHTML = '';
-  document.getElementById('alertContainer').innerHTML = '';
-  renderRoster(); renderNeeds(); renderAvailable();
+  document.getElementById('draftAlerts').innerHTML=alerts.map(a=>`<div class="alert">${a}</div>`).join('');
 }
 
 // ═══════════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════════
 init();
+window.addEventListener('resize',()=>{ if(_renderedTabs.has('vorp')) drawChart(); });
 </script>
 </body>
 </html>
