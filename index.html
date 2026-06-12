@@ -199,6 +199,9 @@ details[open] summary::after{transform:rotate(180deg)}
   <div class="nav-tab" onclick="go('draft')">🎯 Live Draft</div>
 </nav>
 
+<!-- STATUS BANNER -->
+<div id="statusBanner" style="background:#0a1628;border-bottom:2px solid #4CAF50;padding:8px 14px;font-size:12px;color:#4CAF50;font-weight:700;display:none"></div>
+
 <!-- ═══════ TAB 1: MASTER BOARD ═══════ -->
 <div id="panel-master" class="panel active">
   <div class="stat-row" id="statCards"></div>
@@ -1181,7 +1184,9 @@ function toggleScorecard(player, tr){
 }
 
 function renderBoard(){
+  console.log('[renderBoard] called, board.length='+board.length+', _bCeil='+_bCeil+', _bGem='+_bGem+', _bSafe='+_bSafe);
   const data=getFilteredBoard();
+  console.log('[renderBoard] filtered to '+data.length+' rows');
   document.getElementById('boardBody').innerHTML=data.map(p=>{
     const rc=p.gem_flag==1?'gem-r':p.bust_flag==1?'bust-r':'';
     const prefix=p.gem_flag==1?'💎 ':p.bust_flag==1?'💀 ':'';
@@ -1802,7 +1807,32 @@ function checkAlerts(){
 // ═══════════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════════
-init();
+function showStatus(msg, color){
+  const el = document.getElementById('statusBanner');
+  if(!el) return;
+  el.style.display = 'block';
+  el.style.borderBottomColor = color||'#4CAF50';
+  el.style.color = color||'#4CAF50';
+  el.textContent = msg;
+}
+
+function safeInit(){
+  try {
+    init();
+    showStatus('✅ Loaded ' + board.length + ' players — ' + new Date().toLocaleTimeString(), '#4CAF50');
+  } catch(e) {
+    console.error('[INIT ERROR]', e);
+    showStatus('❌ Init error: ' + e.message, '#ff6b6b');
+    const tbody = document.getElementById('boardBody');
+    if(tbody) tbody.innerHTML = '<tr><td colspan="13" style="color:#ff6b6b;padding:20px;text-align:center">❌ ERROR loading data: ' + e.message + '</td></tr>';
+  }
+}
+
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', safeInit);
+} else {
+  safeInit();
+}
 window.addEventListener('resize',()=>{ if(_renderedTabs.has('vorp')) drawChart(); });
 </script>
 </body>
