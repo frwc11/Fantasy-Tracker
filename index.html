@@ -172,6 +172,15 @@ details[open] summary::after{transform:rotate(180deg)}
 .inj-layout{display:grid;grid-template-columns:1fr 300px;gap:14px}
 .safe-core-card{background:rgba(76,175,80,.06);border:1px solid rgba(76,175,80,.2);border-radius:6px;padding:8px 11px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
 
+/* ── Taxi grade badges ── */
+.taxi-elite{background:rgba(255,215,0,.15);color:var(--qb);padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700}
+.taxi-strong{background:rgba(76,175,80,.15);color:var(--gem);padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700}
+.taxi-spec{background:rgba(107,127,163,.15);color:var(--muted);padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700}
+.rookie-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.rookie-card.elite{border-color:rgba(255,215,0,.4);background:rgba(255,215,0,.04)}
+.rookie-card.strong{border-color:rgba(76,175,80,.3);background:rgba(76,175,80,.03)}
+.rookie-card.spec{border-color:rgba(107,127,163,.2)}
+
 /* ── Misc ── */
 .rnd-badge{display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;background:var(--bg3);border:1px solid var(--border)}
 .cliff-card{background:var(--bg2);border-radius:7px;padding:12px;margin-bottom:8px}
@@ -197,10 +206,41 @@ details[open] summary::after{transform:rotate(180deg)}
   <div class="nav-tab" onclick="go('vegas')">⚡ Vegas Overlay</div>
   <div class="nav-tab" onclick="go('rounds')">📋 Round Guide</div>
   <div class="nav-tab" onclick="go('draft')">🎯 Live Draft</div>
+  <div class="nav-tab" onclick="go('rookies')">🌟 Rookies &amp; Taxi</div>
 </nav>
 
 <!-- STATUS BANNER -->
 <div id="statusBanner" style="background:#0a1628;border-bottom:2px solid #4CAF50;padding:8px 14px;font-size:12px;color:#4CAF50;font-weight:700;display:none"></div>
+
+<!-- ═══════ TAB 8: ROOKIES & TAXI ═══════ -->
+<div id="panel-rookies" class="panel">
+  <div class="stat-row" id="rookieStats"></div>
+  <div class="toolbar">
+    <span class="pill on" id="rk-ALL" onclick="setRkPill('ALL',this)">ALL</span>
+    <span class="pill" id="rk-ELITE" onclick="setRkPill('ELITE_TAXI',this)" style="border-color:var(--qb)">⭐ Elite Taxi</span>
+    <span class="pill" id="rk-STRONG" onclick="setRkPill('STRONG_TAXI',this)" style="border-color:var(--gem)">💪 Strong Taxi</span>
+    <span class="pill" id="rk-SPEC" onclick="setRkPill('SPECULATIVE',this)" style="border-color:var(--muted)">🎰 Speculative</span>
+    <span class="pill qb" id="rk-QB" onclick="setRkPos('QB',this)">QB</span>
+    <span class="pill rb" id="rk-RB" onclick="setRkPos('RB',this)">RB</span>
+    <span class="pill wr" id="rk-WR" onclick="setRkPos('WR',this)">WR</span>
+    <span class="pill te" id="rk-TE" onclick="setRkPos('TE',this)">TE</span>
+    <span class="pill idp" id="rk-IDP" onclick="setRkPos('IDP',this)">IDP</span>
+  </div>
+  <div id="rookieCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-bottom:14px"></div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>Pick</th><th>Player</th><th>Pos</th><th>Team</th><th>Age</th>
+        <th>Taxi Grade</th><th>My Rank</th><th>Tgt Rd</th>
+        <th>Proj</th><th>Ceiling</th><th>Future</th><th>DP Val</th>
+      </tr></thead>
+      <tbody id="rookieBody"></tbody>
+    </table>
+  </div>
+  <div style="margin-top:14px;padding:12px;background:rgba(255,159,67,.07);border:1px solid rgba(255,159,67,.3);border-radius:6px;font-size:11px;color:var(--idp)">
+    ⚠️ <strong>Draft Sharks warning:</strong> "This class might have gotten WORSE after draft. WRs landed in inept offenses. RBs find no clear path to starting." Top 4 picks (Love/Mendoza/Tate/Bailey) are genuine dynasty assets. After that, value drops sharply. De'Zhaun Stribling: ranked lower than market consensus per CBS Sports.
+  </div>
+</div>
 
 <!-- ═══════ TAB 1: MASTER BOARD ═══════ -->
 <div id="panel-master" class="panel active">
@@ -230,6 +270,7 @@ details[open] summary::after{transform:rotate(180deg)}
     <span class="pill low" id="bp-SAFE" onclick="setBToggle('SAFE',this)">🟢 Safe Only</span>
     <span class="pill" id="bp-CEIL" onclick="setBToggle('CEIL',this)" style="border-color:var(--qb)">🎰 Ceiling≥80</span>
     <span class="pill" id="bp-BUYLOW" onclick="setBToggle('BUYLOW',this)" style="border-color:#f368e0">📉 Buy Low</span>
+    <span class="pill" id="bp-ROOKIE" onclick="setBToggle('ROOKIE',this)" style="border-color:var(--qb)">🌟 Rookies</span>
   </div>
   <div class="tbl-wrap">
     <table id="boardTbl">
@@ -415,139 +456,160 @@ details[open] summary::after{transform:rotate(180deg)}
 // ═══════════════════════════════════════════════════════════
 // EMBEDDED DATA
 // ═══════════════════════════════════════════════════════════
-const _RAW_BOARD = `player,pos,team,age,consensus_rank,my_rank,adp_round,target_round,tier,value_gap,gem_flag,notes,vorp_raw,vorp_adjusted,vorp_2qb_adjusted,te_premium_pts,vorp_rank,positional_drop,cliff,snap_pct,target_share,air_yards_share,yprt,separation,cpoe,air_yards_per_att,pressure_rate_faced,time_to_throw,opportunity_share,yac_per_carry,broken_tackle_rate,route_pct,snap_pct_def,pressure_rate_pass_rush,pass_rush_win_rate,tackle_rate,proj_pts_2026,ceiling_score,floor_score,floor_score_v2,future_value,games_missed_2025,games_missed_2024,games_missed_2023,injury_type_history,games_played_pct_career,injury_risk_score,injury_risk_tier,master_score,bust_category,bust_reason,dp_value_2qb,dp_rank_2qb,dp_vs_my_rank,market_inefficiency
-Josh Allen,QB,BUF,30,1,1,1,1,R1,0,0,Elite SF QB1 — BUF 10.5 wins — peak window now,91,91,109,,1,45,MAJOR,98,,,,,6.2,9.1,22,2.55,,,,,,,,,412,96,82,94,68,0,0,1,minor shoulder,97,1.4,🟢 LOW RISK,84.1,NONE,,10208,1,0,FAIR
-Drake Maye,QB,NE,23,2,2,1,1,R1,0,0,Young elite QB — age 23 ideal — NE 9.5 wins — decade cornerstone,45,45,63,,3,1,false,96,,,,,3.1,8.8,28,2.61,,,,,,,,,362,92,72,81,92,2,0,0,ankle,95,1.6,🟢 LOW RISK,80.4,NONE,,8800,3,1,FAIR
-Jayden Daniels,QB,WAS,26,3,3,1,1,R1,0,0,Elite dual-threat — WAS 7.5 wins concern but talent is elite,46,46,64,,2,1,false,97,,,,,4.8,8.2,26,2.42,,,,,,,,,368,91,74,86,88,0,0,0,None noted,98,0.3,🟢 LOW RISK,80.8,NONE,,7100,10,7,FAIR
-Lamar Jackson,QB,BAL,29,4,4,1,1,R1,0,0,BAL 11.5 wins Vegas darling — elite — 2-3yr window,44,44,62,,4,4,false,97,,,,,5.2,7.8,19,2.38,,,,,,,,,371,93,78,90,72,0,1,0,knee,84,0.4,🟢 LOW RISK,79.0,NONE,,6500,18,14,BUY
-Joe Burrow,QB,CIN,29,5,5,1,1,R1,0,0,CIN 10.5 wins — elite with Chase — minor injury history concern,30,30,48,,7,2,false,95,,,,,3.9,9.3,25,2.51,,,,,,,,,344,89,68,77,72,0,11,0,wrist ACL-equivalent,72,3.1,🟡 MODERATE,68.0,NONE,,5100,28,23,STRONG_BUY
-Caleb Williams,QB,CHI,24,6,6,1,1,R1,0,0,CHI 9.5 wins — age 24 upside — keep as ranked,13,13,31,,13,1,false,96,,,,,1.2,7.9,31,2.69,,,,,,,,,312,86,62,68,88,2,0,0,hamstring,94,2.0,🟢 LOW RISK,71.1,NONE,,5400,26,20,STRONG_BUY
-Bijan Robinson,RB,ATL,24,7,16,1,2,R2,-9,0,ATL ONLY 6.5 WIN TOTAL — MAJOR BUST FLAG — overvalued consensus R1,294,294,,,2,48,true,62,13,,,,,,,,32,2.7,18,52,,,,,308,86,70,88,80,0,1,0,minor soft tissue,95,0.9,🟢 LOW RISK,82.6,NONE,,8032,4,-12,SELL
-Patrick Mahomes,QB,KC,30,8,8,1,1,R1,0,0,KC 10.5 wins — elite but age 30 entering decline window,23,23,41,,11,5,true,97,,,,,2.4,8.1,23,2.72,,,,,,,,,334,86,76,85,62,0,0,0,ankle,94,0.3,🟢 LOW RISK,71.2,NONE,,5000,28,20,STRONG_BUY
-Ja'Marr Chase,WR,CIN,25,9,9,1,1,R1,0,0,CIN 10.5 wins BOOST — elite WR1 prime age — keep as ranked,124,124,,,3,10,false,91,28,30,2.38,3.1,,,,,,,,,,,,,278,88,72,95,82,0,0,1,hamstring,96,1.0,🟢 LOW RISK,77.0,NONE,,9076,2,-7,FAIR
-Justin Herbert,QB,LAC,28,10,10,1,1,R1,0,0,LAC 10.5 wins BOOST — elite SF QB — top value,18,18,36,,12,5,MAJOR,97,,,,,2.2,8.7,25,2.57,,,,,,,,,318,82,70,79,68,1,0,2,rib cartilage,91,1.5,🟢 LOW RISK,69.1,NONE,,4400,32,22,STRONG_BUY
-Jalen Hurts,QB,PHI,27,11,11,2,2,R2,0,0,PHI 10.5 wins — elite dual-threat QB,40,40,58,,5,9,true,95,,,,,2.8,8.5,24,2.58,,,,,,,,,348,88,74,83,76,1,1,3,shoulder | clavicle,82,2.6,🟡 MODERATE,70.3,NONE,,5800,22,11,BUY
-Jahmyr Gibbs,RB,DET,24,12,12,2,2,R2,0,0,DET 10.5 wins BOOST — elite RB age 24 — premium situation,294,294,,,1,0,false,56,10,,,,,,,,28,2.9,22,45,,,,,322,90,76,95,88,1,2,0,hamstring,92,2.6,🟡 MODERATE,81.3,NONE,,7243,9,-3,FAIR
-Jeremiyah Love,RB,ARI,22,13,22,2,3,R3,-9,0,ARI ONLY 3.5 WIN TOTAL — volume concern in worst offense — BUST,139,139,,,14,3,false,55,10,,,,,,,,28,3.0,24,42,,,,,248,76,60,79,84,3,0,0,soft tissue,88,3.2,🟡 MODERATE,65.2,NONE,,5904,12,-10,SELL
-Trevor Lawrence,QB,JAC,26,14,14,2,2,R2,0,0,JAC 8.5 wins — elite SF QB — starter upside remains,25,25,43,,9,0,false,96,,,,,1.8,8.4,27,2.63,,,,,,,,,316,81,66,72,74,0,3,1,ankle | shoulder,85,1.6,🟢 LOW RISK,68.8,NONE,,4600,29,15,BUY
-Justin Jefferson,WR,MIN,27,15,15,2,2,R2,0,0,MIN 8.5 wins — elite WR — prime age window,80,80,,,10,4,false,89,25,26,2.28,3.0,,,,,,,,,,,,,256,82,68,88,72,1,4,0,hamstring,88,2.3,🟢 LOW RISK,69.4,NONE,,8032,5,-10,SELL
-Ashton Jeanty,RB,LVR,22,16,17,2,2,R2,-1,0,LVR 6.5 wins FADE — volume RB in bad offense — minor downgrade,202,202,,,7,0,false,68,9,,,,,,,,36,3.3,29,42,,,,,296,86,70,92,88,0,0,0,None noted,100,0.8,🟢 LOW RISK,81.1,NONE,,6455,10,-7,FAIR
-Jaxon Smith-Njigba,WR,SEA,23,17,18,2,2,R2,-1,0,SEA 10.5 wins BOOST — elite WR age 23 — keep near rank,142,142,,,2,18,false,86,22,20,2.15,2.7,,,,,,,,,,,,,262,80,64,79,84,0,1,0,shoulder,96,1.5,🟢 LOW RISK,72.0,NONE,,8639,3,-15,SELL
-Omarion Hampton,RB,LAC,22,18,19,2,2,R2,-1,0,LAC 10.5 wins BOOST — premium situation — keep near rank,148,148,,,11,0,false,50,9,,,,,,,,22,2.7,18,40,,,,,244,78,60,75,86,0,0,0,None noted,100,0.8,🟢 LOW RISK,70.2,NONE,,5044,14,-5,FAIR
-Puka Nacua,WR,LAR,24,19,20,2,2,R2,-1,0,LAR 11.5 wins BOOST — McVay offense — keep near rank,148,148,,,1,6,false,88,24,22,2.21,2.9,,,,,,,,,,,,,268,82,66,83,80,1,7,0,knee | thumb,82,2.0,🟢 LOW RISK,73.1,NONE,,7736,7,-13,SELL
-CeeDee Lamb,WR,DAL,27,20,21,2,3,R3,-1,0,DAL 9.5 wins — prime age but team win total declining,90,90,,,7,2,false,90,30,28,2.42,3.2,,,,,,,,,,,,,274,86,70,93,72,0,0,1,shoulder,97,1.5,🟢 LOW RISK,72.8,NONE,,7736,6,-15,SELL
-Malik Nabers,WR,NYG,23,21,24,3,3,R3,-3,0,NYG 7.5 wins concern — elite talent at 23 — slight downgrade,76,76,,,11,4,false,88,26,24,2.19,2.8,,,,,,,,,,,,,248,82,64,84,84,1,0,0,concussion,95,2.0,🟢 LOW RISK,70.2,NONE,,6232,11,-13,SELL
-Jonathan Taylor,RB,IND,26,22,33,3,4,R4,-11,0,Injury history — age 26 on RB age curve — IND 7.5 wins — BUST,244,244,,,4,16,false,55,8,,,,,,,,25,2.8,19,40,,,,,278,80,58,75,62,4,1,7,hamstring | ankle,75,4.2,🟡 MODERATE,66.4,NONE,,3600,44,11,BUY
-Amon-Ra St. Brown,WR,DET,26,23,25,3,3,R3,-2,0,DET 10.5 wins BOOST — reliable WR1 — keep near rank,114,114,,,4,9,false,89,23,19,2.08,2.6,,,,,,,,,,,,,252,78,68,83,72,0,0,0,None noted,98,0.4,🟢 LOW RISK,68.4,NONE,,7503,8,-17,SELL
-Brock Purdy,QB,SF,26,24,26,3,3,R3,-2,0,SF 10.5 wins BOOST — system QB risk — keep near rank,28,28,46,,8,3,false,96,,,,,2.1,8.0,21,2.59,,,,,,,,,322,82,72,81,68,1,0,7,elbow | forearm,82,1.8,🟢 LOW RISK,70.1,NONE,,3800,41,15,BUY
-Drake London,WR,ATL,25,25,35,3,4,R4,-10,0,ATL 6.5 WIN TOTAL FADE — team context destroys dynasty value,105,105,,,5,11,false,87,22,21,1.94,2.4,,,,,,,,,,,,,238,76,62,75,78,0,1,2,ankle,90,0.6,🟢 LOW RISK,66.3,NONE,,5699,13,-22,STRONG_SELL
-Brock Bowers,TE,LVR,22,35,9,4,1,R1,26,1,TE PREMIUM MONSTER — age 22 — 100+ target pace — LVR targets — GEM,53,100.5,,47.5,2,16.5,true,90,23,17,1.76,2.3,,,,,,,,,,,,,212,82,72,88,88,0,0,0,None noted,100,0.5,🟢 LOW RISK,70.1,GEM,Value exceeds consensus rank by 10+ spots,6800,16,7,FAIR
-Abdul Carter,EDGE,PHI,23,80,27,8,3,R8,53,1,IDP MONSTER — proj 22 FPPG — age 23 — PHI 10.5 wins — GEM,,,,,,,,,,,,,,,,,,,,,78,,22,6,0,88,70,84,92,0,0,0,None noted,100,0.6,🟢 LOW RISK,52.8,GEM,Value exceeds consensus rank by 10+ spots,3500,46,19,BUY
-Aidan Hutchinson,EDGE,DET,26,85,28,9,3,R9,57,1,IDP ELITE — proj 22 FPPG — DET 10.5 wins — top IDP GEM,,,,,,,,,,,,,,,,,,,,,84,,25,7,0,86,72,86,76,0,8,0,tibia fracture,80,2.0,🟢 LOW RISK,49.6,GEM,Value exceeds consensus rank by 10+ spots,3200,51,23,STRONG_BUY
-Marvin Harrison Jr,WR,ARI,23,30,23,3,3,R3,7,0,Elite talent — age 23 — ARI 3.5 wins concern but talent keeps rank,72,72,,,12,4,false,87,24,25,2.14,2.9,,,,,,,,,,,,,238,80,62,79,84,2,0,0,soft tissue,94,1.6,🟢 LOW RISK,68.0,NONE,,4900,28,5,FAIR
-Rome Odunze,WR,CHI,23,35,29,4,3,R4,6,0,CHI 9.5 wins — age 23 WR — Williams connection boosts value,68,68,,,13,4,false,82,20,21,1.96,2.6,,,,,,,,,,,,,232,76,60,72,82,1,0,0,wrist,97,2.3,🟢 LOW RISK,64.8,NONE,,4700,30,1,FAIR
-Brian Thomas Jr,WR,JAC,23,38,30,4,3,R4,8,1,Elite WR age 23 — Lawrence connection — JAC 8.5 wins — GEM,64,64,,,14,4,false,84,21,22,2.04,2.7,,,,,,,,,,,,,226,74,60,72,82,0,0,0,None noted,100,0.4,🟢 LOW RISK,63.9,GEM,Value exceeds consensus rank by 10+ spots,5200,27,-3,FAIR
-Will Anderson,EDGE,HOU,25,90,31,9,4,R9,59,1,IDP ELITE — proj 21 FPPG — HOU 9.5 wins — GEM,,,,,,,,,,,,,,,,,,,,,82,,24,6,0,84,70,84,82,0,0,2,shoulder,94,1.7,🟢 LOW RISK,50.0,GEM,Value exceeds consensus rank by 10+ spots,2800,58,27,STRONG_BUY
-Jared Verse,EDGE,CLE,24,95,32,10,4,R10,63,1,IDP ELITE — proj 19 FPPG — TRADED to CLE (Garrett trade June 2026) — GEM at R4 in weak market,,,,,,,,,,,,,,,,,,,,,80,,21,6,0,82,66,80,84,0,0,0,None noted,100,0.6,🟢 LOW RISK,49.2,GEM,Value exceeds consensus rank by 10+ spots,2600,63,31,STRONG_BUY
-Trey McBride,TE,ARI,26,50,34,5,4,R5,16,1,TE PREMIUM — 100+ target pace — ARI context concern but volume real — GEM,55,105.0,,50.0,1,4.5,false,92,25,18,1.82,2.4,,,,,,,,,,,,,214,80,72,91,78,0,0,0,None noted,98,0.5,🟢 LOW RISK,68.6,GEM,Value exceeds consensus rank by 10+ spots,4200,33,-1,FAIR
-Drake London,WR,ATL,25,25,35,3,4,R4,-10,0,ATL 6.5 WIN TOTAL — team context destroys value — BUST,105,105,,,5,11,false,87,22,21,1.94,2.4,,,,,,,,,,,,,238,76,62,75,78,0,1,2,ankle,90,0.6,🟢 LOW RISK,66.3,NONE,,5699,13,-22,STRONG_SELL
-Sam LaPorta,TE,DET,25,55,36,6,4,R6,19,1,TE PREMIUM — DET 10.5 wins high-octane offense — undervalued — GEM,25,62.5,,37.5,8,9.0,false,82,18,13,1.58,2.0,,,,,,,,,,,,,188,72,62,67,76,0,3,0,knee,91,0.7,🟢 LOW RISK,58.5,GEM,Value exceeds consensus rank by 10+ spots,3800,41,5,FAIR
-Micah Parsons,EDGE,DAL,27,40,38,4,4,R4,2,0,ACL INJURY RISK — uncertain 2026 availability — downgrade from consensus,,,,,,,,,,,,,,,,,,,,,0,,0,0,0,86,28,28,68,10,0,0,ACL,82,7.8,🔴 HIGH RISK,26.6,NONE,,2000,77,39,STRONG_BUY
-Travis Hunter,WR,JAC,23,45,39,5,4,R5,6,0,Two-way talent — JAC 8.5 wins — age 23 — monster upside GEM,60,60,,,15,5,false,62,16,17,1.88,2.8,,,,,,,,,,,,,188,74,54,58,84,0,0,0,None noted,100,0.4,🟢 LOW RISK,58.6,NONE,,5500,25,-14,SELL
-Jack Campbell,LB,DET,26,100,40,10,4,R10,60,1,IDP 20 FPPG TACKLE MONSTER — DET 10.5 wins — LB1 — GEM,,,,,,,,,,,,,,,,,,,,,90,,8,18,0,78,70,84,76,0,1,0,ankle,97,0.6,🟢 LOW RISK,47.6,GEM,Value exceeds consensus rank by 10+ spots,2200,72,32,STRONG_BUY
-Ladd McConkey,WR,LAC,24,50,42,5,5,R5,8,1,LAC 10.5 wins BOOST — age 24 WR — undervalued — GEM,25,25,,,26,5,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.8,GEM,Value exceeds consensus rank by 10+ spots,3700,43,1,FAIR
-Luther Burden,WR,CHI,22,55,43,6,5,R6,12,1,Age 22 WR — CHI offense upside — Williams connection — GEM,42,42,,,20,3,false,68,15,16,1.8,2.5,,,,,,,,,,,,,186,72,50,52,82,0,0,0,None noted,100,0.4,🟢 LOW RISK,55.9,GEM,Value exceeds consensus rank by 10+ spots,4600,29,-14,SELL
-Shedeur Sanders,QB,CLE,24,60,44,6,5,R6,16,1,Starting QB age 24 — CLE 5.5 wins FADE context — strong SF value,0,0,18,,22,0,false,95,,,,,0.8,7.2,35,2.71,,,,,,,,,272,80,54,60,82,1,0,0,rib,96,1.4,🟢 LOW RISK,63.8,GEM,Value exceeds consensus rank by 10+ spots,4000,38,-6,FAIR
-Jordan Addison,WR,MIN,24,55,45,6,5,R6,10,1,MIN 8.5 wins — age 24 WR — step-up role — undervalued GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Jaxson Dart,QB,NYG,23,70,46,7,5,R7,24,1,Starting QB age 23 — NYG 7.5 wins — SF premium dynasty asset — GEM,31,31,49,,6,1,false,94,,,,,1.4,7.6,30,2.67,,,,,,,,,295,82,58,61,84,0,0,0,None noted,98,0.3,🟢 LOW RISK,67.5,GEM,Value exceeds consensus rank by 10+ spots,5600,24,-22,STRONG_SELL
-TreVeyon Henderson,RB,NE,23,65,47,7,5,R7,18,1,Age 23 RB — NE 9.5 wins — youth premium — GEM target,110,110,,,19,5,false,44,9,,,,,,,,18,2.6,16,38,,,,,218,72,52,60,78,2,3,1,shoulder | ankle,82,3.3,🟡 MODERATE,57.0,GEM,Value exceeds consensus rank by 10+ spots,4100,37,-10,SELL
-De'Von Achane,RB,MIA,23,40,48,4,5,R4,-8,0,MIA 4.5 WIN TOTAL FADE — huge bust flag — avoid near consensus,228,228,,,5,21,false,54,14,,,,,,,,24,3.1,26,55,,,,,274,84,56,75,80,3,4,0,hamstring | hamstring,79,5.0,🟠 ELEVATED,63.0,BUY_LOW,Age 23 high-upside stash — injury risk 5/10 suppressing market,5100,28,-20,STRONG_SELL
-Carson Schwesinger,LB,TEN,25,105,49,11,5,R11,56,1,IDP top-5 scorer — 19 FPPG — LB1 TEN — age 25 — GEM,,,,,,,,,,,,,,,,,,,,,88,,7,17,0,76,68,82,78,0,0,0,None noted,100,0.5,🟢 LOW RISK,47.2,GEM,Value exceeds consensus rank by 10+ spots,1800,82,33,STRONG_BUY
-Quinshon Judkins,RB,CLE,23,68,50,7,6,R7,18,1,Age 23 RB — CLE 5.5 wins concern — raw talent premium — GEM,105,105,,,20,5,false,46,8,,,,,,,,19,2.7,17,35,,,,,214,70,50,61,76,0,0,0,None noted,100,0.8,🟢 LOW RISK,60.2,GEM,Value exceeds consensus rank by 10+ spots,3600,44,-6,FAIR
-James Cook,RB,BUF,26,55,51,6,6,R6,4,0,BUF 10.5 wins BOOST — age 26 RB — solid value,191,191,,,9,2,false,58,11,,,,,,,,27,2.9,21,46,,,,,272,78,64,83,72,1,0,2,ankle,91,2.0,🟢 LOW RISK,72.4,NONE,,3500,46,-5,FAIR
-Kyle Pitts,TE,ATL,25,60,52,6,6,R6,8,0,ATL 6.5 wins FADE — talent exists but team context destroys value,27,62.0,,35.0,6,3.5,false,78,17,14,1.62,2.2,,,,,,,,,,,,,174,76,44,46,68,3,2,10,knee | ankle,71,3.5,🟡 MODERATE,48.8,NONE,,,,,
-George Pickens,WR,DAL,25,52,48,6,5,R6,4,0,DAL 9.5 wins — age 25 WR — opportunity moved teams,88,88,,,8,5,false,82,18,22,1.98,2.6,,,,,,,,,,,,,236,76,58,65,72,2,1,2,hamstring | hamstring,86,3.3,🟡 MODERATE,58.0,NONE,,4400,32,-16,SELL
-Keon Coleman,WR,BUF,23,62,53,7,6,R7,9,1,BUF 10.5 wins BOOST — age 23 WR — Allen connection — GEM,36,36,,,22,3,false,70,15,17,1.78,2.3,,,,,,,,,,,,,182,66,48,48,70,3,0,0,wrist,88,3.6,🟡 MODERATE,47.4,GEM,Value exceeds consensus rank by 10+ spots,3200,51,-2,FAIR
-Nik Bonitto,EDGE,DEN,25,90,54,9,6,R9,36,1,DEN 9.5 wins — proj 17 FPPG EDGE — age 25 — undervalued IDP GEM,,,,,,,,,,,,,,,,,,,,,76,,18,5,0,70,58,69,68,2,1,0,hamstring,88,2.4,🟢 LOW RISK,41.4,GEM,Value exceeds consensus rank by 10+ spots,1600,88,34,STRONG_BUY
-Kyle Hamilton,DB,BAL,25,80,55,8,6,R8,25,1,BAL 11.5 wins BOOST — proj 17 FPPG DB — age 25 — elite IDP GEM,,,,,,,,,,,,,,,,,,,,,84,,10,13,0,74,66,77,76,0,0,1,minor,97,0.3,🟢 LOW RISK,45.4,GEM,Value exceeds consensus rank by 10+ spots,2100,74,19,BUY
-Myles Garrett,EDGE,LAR,30,55,56,6,6,R6,-1,0,Age 30 IDP — TRADED to LAR (11.5 wins) — elite FPPG but dynasty sunset — fade late,,,,,,,,,,,,,,,,,,,,,86,,28,7,0,84,60,74,52,0,0,0,minor,93,0.6,🟢 LOW RISK,42.0,NONE,,1800,82,26,STRONG_BUY
-Kyren Williams,RB,LAR,25,60,57,6,6,R6,3,0,LAR 11.5 wins BOOST — age 25 RB — solid value,146,146,,,13,7,false,58,10,,,,,,,,26,2.7,19,44,,,,,246,72,58,73,66,3,8,0,hamstring | ankle,72,4.3,🟡 MODERATE,60.1,NONE,,4200,33,-24,STRONG_SELL
-Rashee Rice,WR,KC,25,70,58,7,6,R7,12,1,KC 10.5 wins BOOST — age 25 WR — ACL recovery concern — GEM if healthy,94,94,,,6,4,false,84,20,22,2.02,2.5,,,,,,,,,,,,,242,78,52,64,78,4,8,0,knee ACL | shoulder,74,5.5,🟠 ELEVATED,54.1,GEM,Value exceeds consensus rank by 10+ spots,4800,28,-30,STRONG_SELL
-Zack Baun,LB,PHI,27,95,59,10,6,R10,36,1,PHI 10.5 wins BOOST — proj 18 FPPG LB — elite situation — GEM,,,,,,,,,,,,,,,,,,,,,82,,9,16,0,72,62,76,66,0,1,2,ankle,88,0.7,🟢 LOW RISK,42.8,GEM,Value exceeds consensus rank by 10+ spots,1500,90,31,STRONG_BUY
-Derwin James,DB,LAC,29,75,60,8,6,R8,15,1,LAC 10.5 wins BOOST — proj 18 FPPG DB — solid IDP value,,,,,,,,,,,,,,,,,,,,,80,,12,12,0,70,42,56,52,3,6,8,knee | foot,68,3.5,🟡 MODERATE,33.1,GEM,Value exceeds consensus rank by 10+ spots,1700,85,25,STRONG_BUY
-Xavier Worthy,WR,KC,23,75,61,8,7,R8,14,1,KC 10.5 wins BOOST — age 23 WR — Mahomes connection — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,3900,40,-21,STRONG_SELL
-Jerry Jeudy,WR,CLE,27,82,62,9,7,R9,20,1,CLE 5.5 wins FADE — age 27 WR — solid WR2 talent,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Jordan Love,QB,GB,27,72,62,8,7,R8,10,1,GB 10.5 wins BOOST — age 27 QB — elite supporting cast — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,5200,27,-35,STRONG_SELL
-Javonte Williams,RB,DEN,25,88,63,9,7,R9,25,1,DEN 9.5 wins — age 25 RB — healthy upside — GEM,100,100,,,21,5,false,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,40.3,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Zay Flowers,WR,BAL,25,72,64,8,7,R8,8,1,BAL 11.5 wins BOOST — age 25 WR — excellent situation — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,3400,47,-17,SELL
-Breece Hall,RB,NYJ,24,58,65,6,7,R6,-7,0,NYJ 5.5 WIN TOTAL FADE — elite talent trapped on bad team,148,148,,,12,2,false,60,14,,,,,,,,28,2.9,22,54,,,,,258,76,56,78,70,4,2,8,ACL,71,5.8,🟠 ELEVATED,57.3,BUY_LOW,Age 24 high-upside stash — injury risk 5.8/10 suppressing market,3300,49,-16,SELL
-Fred Warner,LB,SF,29,85,66,9,7,R9,19,1,SF 10.5 wins BOOST — proj 16 FPPG LB — reliable IDP — GEM,,,,,,,,,,,,,,,,,,,,,86,,6,17,0,66,60,74,58,1,0,1,minor,95,1.7,🟢 LOW RISK,39.6,GEM,Value exceeds consensus rank by 10+ spots,1400,93,27,STRONG_BUY
-Quay Walker,LB,GB,26,95,67,10,7,R10,28,1,GB 10.5 wins BOOST — proj 16 FPPG LB — elite situation — GEM,,,,,,,,,,,,,,,,,,,,,84,,6,16,0,66,58,72,62,2,1,0,ankle,89,1.8,🟢 LOW RISK,40.0,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Jake Ferguson,TE,DAL,25,75,68,8,7,R8,7,0,DAL 9.5 wins — age 25 TE — solid dynasty value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,NONE,,,,,
-Bo Nix,QB,DEN,25,78,69,8,7,R8,9,1,DEN 9.5 wins — age 25 QB — improving — value pick,10,10,28,,15,3,MAJOR,95,,,,,0.9,7.4,29,2.68,,,,,,,,,278,72,58,64,68,,,,,,0.3,🟢 LOW RISK,61.0,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Anthony Richardson,QB,IND,23,82,63,9,7,R9,19,1,Age 23 QB — IND 7.5 wins — massive ceiling if healthy — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,3700,43,-20,STRONG_SELL
-Dak Prescott,QB,DAL,32,68,78,7,8,R7,-10,0,Age 32 QB entering decline — injury history — slight bust,25,25,43,,10,2,false,93,,,,,1.9,8.2,26,2.61,,,,,,,,,308,78,64,67,56,4,0,3,hamstring | hand,76,3.4,🟡 MODERATE,58.6,DECLINING,Age 32 — consensus 68 overvalues by 10 spots vs my rank 78,3400,47,-31,STRONG_SELL
-Isaiah Likely,TE,BAL,25,88,69,9,7,R9,19,1,BAL 11.5 wins BOOST — age 25 TE — premium situation — GEM,17,44.5,,27.5,11,0.0,false,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,38.5,GEM,Value exceeds consensus rank by 10+ spots,2600,63,-6,FAIR
-Dameon Pierce,RB,HOU,26,98,70,10,7,R10,28,1,HOU 9.5 wins — age 26 RB — strong situation value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Xavier McKinney,DB,GB,26,100,71,10,8,R10,29,1,GB 10.5 wins BOOST — proj 15 FPPG DB — undervalued IDP,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Sam Darnold,QB,MIN,28,75,72,8,8,R8,3,0,MIN 8.5 wins — bridge QB — limited dynasty upside,0,0,18,,21,0,false,93,,,,,0.4,7.1,28,2.73,,,,,,,,,274,68,54,57,56,2,1,8,ankle | foot,75,2.0,🟢 LOW RISK,55.8,NONE,,,,,
-D'Andre Swift,RB,CHI,26,78,73,8,8,R8,5,0,CHI 9.5 wins — age 26 RB — solid depth value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,
-Chop Robinson,EDGE,MIA,23,110,75,11,8,R11,35,1,Age 23 EDGE stash — proj 12 FPPG — upside GEM despite MIA 4.5 wins,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,2400,66,-9,FAIR
-Jaylen Warren,RB,PIT,26,90,76,9,8,R9,14,1,PIT 8.5 wins — age 26 RB — limited lead back potential,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Tank Dell,WR,HOU,25,68,77,7,8,R7,-9,0,HOU 9.5 wins — age 25 WR — injury concern is real concern,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,NONE,,,,,
-Brian Robinson Jr,RB,WAS,27,80,78,8,8,R8,2,0,WAS 7.5 wins — age 27 RB — limited upside,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,
-T.J. Watt,EDGE,PIT,30,72,79,8,8,R8,-7,0,Age 30 EDGE — PIT 8.5 wins — declining dynasty window,,,,,,,,,,,,,,,,,,,,,82,,23,6,0,72,58,72,54,1,0,3,pec,84,2.7,🟡 MODERATE,36.8,NONE,,,,,
-Kenneth Walker III,RB,SEA,25,48,44,5,5,R5,4,0,SEA 10.5 wins BOOST — age 25 RB — solid value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,
-Rhamondre Stevenson,RB,NE,26,72,65,8,7,R8,7,0,NE 9.5 wins — age 26 RB — Henderson sharing concern,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,
-Isiah Pacheco,RB,KC,27,65,67,7,7,R7,-2,0,KC 10.5 wins BOOST — age 27 RB — declining dynasty window,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,
-Quay Walker,LB,GB,26,95,67,10,7,R10,28,1,GB 10.5 wins BOOST — elite LB situation — GEM,,,,,,,,,,,,,,,,,,,,,84,,6,16,0,66,58,72,62,2,1,0,ankle,89,1.8,🟢 LOW RISK,40.0,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Dallas Turner,EDGE,MIN,23,118,82,12,9,R12,36,1,Age 23 EDGE stash — MIN 8.5 wins — developmental GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,2000,77,-5,FAIR
-Brian Burns,EDGE,NYG,27,88,83,9,9,R9,5,0,NYG 7.5 wins — age 27 EDGE — solid IDP value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,NONE,,,,,
-Laiatu Latu,EDGE,LAC,24,115,80,12,8,R12,35,1,Age 24 EDGE stash — proj 12 FPPG — LAC 10.5 wins BOOST — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,2300,69,-11,SELL
-Bralen Trice,EDGE,SEA,23,120,85,12,9,R12,35,1,Age 23 EDGE stash — SEA 10.5 wins BOOST — developmental GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,1900,80,-5,FAIR
-Maxx Crosby,EDGE,LVR,28,85,86,9,9,R9,-1,0,LVR 6.5 wins FADE — age 28 — slight decline concern,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,NONE,,,,,
-Josh Sweat,EDGE,PHI,28,95,87,10,9,R10,8,1,PHI 10.5 wins BOOST — age 28 EDGE — excellent situation GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Patrick Queen,LB,PIT,27,92,87,10,9,R10,5,0,PIT 8.5 wins — age 27 LB — solid dynasty value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,NONE,,,,,
-Najee Harris,RB,PIT,27,92,89,10,9,R10,3,0,PIT 8.5 wins — age 27 RB — limited ceiling,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,
-Minkah Fitzpatrick,DB,PIT,28,88,81,9,9,R9,7,0,PIT 8.5 wins — age 28 DB — solid IDP value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,NONE,,,,,
-Tyjae Spears,RB,TEN,24,88,84,9,9,R9,4,0,TEN 6.5 wins FADE — age 24 upside — developmental,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,
-Rashan Gary,EDGE,GB,28,82,78,9,8,R9,4,0,GB 10.5 wins BOOST — age 28 EDGE — solid value,,,,,,,,,,,,,,,,,,,,,74,,16,5,0,68,40,47,56,0,0,10,ACL,75,3.1,🟡 MODERATE,31.8,NONE,,,,,
-Tony Pollard,RB,TEN,28,85,88,9,9,R9,-3,0,TEN 6.5 wins FADE — age 28 RB — declining window,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,
-Travon Walker,EDGE,JAC,25,92,82,10,9,R10,10,1,JAC 8.5 wins — age 25 EDGE — developmental upside — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Roquan Smith,LB,BAL,28,88,74,9,8,R9,14,1,BAL 11.5 wins BOOST — age 28 LB — solid IDP value — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,1600,88,14,BUY
-Talanoa Hufanga,DB,SF,26,95,85,10,9,R10,10,1,SF 10.5 wins BOOST — age 26 DB — strong situation — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,1100,102,17,BUY
-Devin White,LB,PHI,27,100,90,10,9,R10,10,1,PHI 10.5 wins BOOST — age 27 LB — situational IDP value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,
-Jordyn Brooks,LB,SEA,27,105,95,11,10,R11,10,1,SEA 10.5 wins BOOST — age 27 LB — undervalued GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,900,110,15,BUY
-Cooper Kupp,WR,LAR,32,45,62,5,7,R5,-17,0,AGE 32 WR — dynasty bust — LAR offense has moved on — BUST FLAG,,,,,,,,,,,,,,,,,,,,,,,,,162,68,30,30,38,6,5,0,Achilles | ankle,64,6.5,🟠 ELEVATED,32.6,DECLINING,Age 32 — consensus 45 overvalues by 17 spots vs my rank 62,,,,
-Trey Hendrickson,EDGE,CIN,31,80,95,8,10,R8,-15,0,Age 31 EDGE entering decline — CIN 10.5 wins only saves near-term,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,DECLINING,Age 31 — consensus 80 overvalues by 15 spots vs my rank 95,,,,
-Haason Reddick,EDGE,FA,31,110,130,11,13,R11,-20,0,Age 31 — unsigned — dynasty bust — avoid entirely,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,DECLINING,Age 31 — consensus 110 overvalues by 20 spots vs my rank 130,,,,
-Bobby Wagner,LB,SEA,35,120,145,12,15,R12,-25,0,AGE 35 — pure dynasty bust — never draft in any format,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,DECLINING,Age 35 — consensus 120 overvalues by 25 spots vs my rank 145,,,,
-Isaiah Simmons,DB,ARI,27,125,135,13,14,R13,-10,0,ARI 3.5 wins FADE — scheme concern — dynasty bust,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,DECLINING,Age 27 — consensus 125 overvalues by 10 spots vs my rank 135,,,,
-Kevin Byard,DB,TEN,32,130,145,13,15,R13,-15,0,Age 32 DB — dynasty bust — avoid entirely,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,DECLINING,Age 32 — consensus 130 overvalues by 15 spots vs my rank 145,,,,
-Aaron Jones,RB,MIN,31,95,118,10,12,R10,-23,0,Age 31 RB — dynasty bust — never draft,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 31 — consensus 95 overvalues by 23 spots vs my rank 118,,,,
-Alvin Kamara,RB,NO,31,100,125,10,13,R10,-25,0,Age 31 RB — NO 7.5 wins — dynasty bust — avoid,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 31 — consensus 100 overvalues by 25 spots vs my rank 125,,,,
-Davante Adams,WR,FA,33,90,118,9,12,R9,-28,0,Age 33 — unsigned — dynasty bust — avoid,16,16,,,28,3,true,,,,,,,,,,,,,,,,,,178,64,46,46,36,2,1,0,hamstring,89,2.2,🟢 LOW RISK,42.4,DECLINING,Age 33 — consensus 90 overvalues by 28 spots vs my rank 118,,,,
-Tyreek Hill,WR,MIA,32,70,95,7,10,R7,-25,0,Age 32 — MIA 4.5 wins FADE — double bust flag — avoid,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,DECLINING,Age 32 — consensus 70 overvalues by 25 spots vs my rank 95,,,,
-Stefon Diggs,WR,FA,32,105,130,11,13,R11,-25,0,Age 32 — unsigned — dynasty bust — avoid,48,48,,,18,3,false,,,,,,,,,,,,,,,,,,172,60,40,40,36,5,4,0,ACL | ankle,80,6.3,🟠 ELEVATED,34.5,DECLINING,Age 32 — consensus 105 overvalues by 25 spots vs my rank 130,1200,98,-32,STRONG_SELL
-Amari Cooper,WR,BUF,31,110,132,11,14,R11,-22,0,Age 31 WR — dynasty bust — avoid,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,DECLINING,Age 31 — consensus 110 overvalues by 22 spots vs my rank 132,,,,
-Gus Edwards,RB,BAL,30,115,135,12,14,R12,-20,0,Age 30 RB — dynasty bust — avoid,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 30 — consensus 115 overvalues by 20 spots vs my rank 135,,,,
-Samaje Perine,RB,DEN,30,130,148,13,15,R13,-18,0,Age 30 RB — dynasty bust — never draft,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 30 — consensus 130 overvalues by 18 spots vs my rank 148,,,,
-Kirk Cousins,QB,ATL,38,120,148,12,15,R12,-28,0,Age 38 QB — dynasty bust — avoid entirely,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,DECLINING,Age 38 — consensus 120 overvalues by 28 spots vs my rank 148,,,,
-Treylon Burks,WR,TEN,25,108,98,11,10,R11,10,1,TEN 6.5 wins FADE — age 25 — developmental deep value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,1400,93,-5,FAIR
-Rashid Shaheed,WR,NO,27,95,90,10,9,R10,5,0,NO 7.5 wins — age 27 WR — deep sleeper value,39,39,,,21,3,false,72,16,18,2.24,2.9,,,,,,,,,,,,,188,70,46,50,64,4,3,0,hamstring | knee,78,3.6,🟡 MODERATE,47.9,NONE,,,,,
-Courtland Sutton,WR,DEN,30,90,100,9,10,R9,-10,0,DEN 9.5 wins — age 30 WR — declining window — bust,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,DECLINING,Age 30 — consensus 90 overvalues by 10 spots vs my rank 100,,,,
-Terry McLaurin,WR,WAS,30,75,85,8,9,R8,-10,0,WAS 7.5 wins — age 30 WR — declining window — bust,55,55,,,16,3,false,81,18,20,1.92,2.5,,,,,,,,,,,,,204,68,56,63,56,2,1,1,hamstring,89,2.3,🟢 LOW RISK,53.8,DECLINING,Age 30 — consensus 75 overvalues by 10 spots vs my rank 85,2900,56,-29,STRONG_SELL
-Budda Baker,DB,ARI,29,100,115,10,12,R10,-15,0,ARI 3.5 wins FADE — age 29 DB — bust flag,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,DECLINING,Age 29 — consensus 100 overvalues by 15 spots vs my rank 115,,,,
-Devin Singletary,RB,NYG,28,110,120,11,12,R11,-10,0,NYG 7.5 wins — age 28 RB — limited upside — bust,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 28 — consensus 110 overvalues by 10 spots vs my rank 120,,,,
-Elijah Mitchell,RB,SF,28,108,118,11,12,R11,-10,0,SF 10.5 wins — age 28 RB — handcuff value only,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 28 — consensus 108 overvalues by 10 spots vs my rank 118,,,,
-Dalton Kincaid,TE,BUF,25,80,75,8,8,R8,5,0,BUF 10.5 wins BOOST — age 25 TE — Allen connection value,6,28.5,,22.5,15,0,false,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,38.0,NONE,,,,,
-David Njoku,TE,CLE,29,85,82,9,9,R9,3,0,CLE 5.5 wins FADE — age 29 TE — declining value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,NONE,,,,,
-Evan Engram,TE,JAC,32,110,130,11,13,R11,-20,0,Age 32 TE — dynasty bust — avoid,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,DECLINING,Age 32 — consensus 110 overvalues by 20 spots vs my rank 130,,,,
-Tua Tagovailoa,QB,MIA,28,85,90,9,9,R9,-5,0,MIA 4.5 wins FADE — injury concern — down on team context,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,SCHEME_RISK,FADE team win total — game scripts crater QB value at age 28,,,,
-Baker Mayfield,QB,TB,31,80,92,8,10,R8,-12,0,TB 8.5 wins — age 31 QB — limited dynasty upside,7,7,25,,16,1,false,92,,,,,1.5,7.8,27,2.62,,,,,,,,,282,74,60,63,54,1,0,2,shoulder,80,2.5,🟢 LOW RISK,58.6,RENTAL,Age 31 — 282 proj pts but future_value=54 — 1-2yr window only,,,,
-Greg Dulcich,TE,DEN,25,115,108,12,11,R12,7,0,DEN 9.5 wins — age 25 TE — developmental value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,NONE,,,,,
-Garrett Wilson,WR,NYJ,25,45,55,5,6,R5,-10,0,NYJ 5.5 WIN TOTAL FADE — elite talent trapped on sinking ship,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,NONE,,3500,46,-9,FAIR
-Jordy Nelson,WR,FA,35,150,165,15,17,R15,-15,0,Age 35 — retired — do not draft,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,DECLINING,Age 35 — consensus 150 overvalues by 15 spots vs my rank 165,,,,`;
+const _RAW_BOARD = `player,pos,team,age,consensus_rank,my_rank,adp_round,target_round,tier,value_gap,gem_flag,notes,vorp_raw,vorp_adjusted,vorp_2qb_adjusted,te_premium_pts,vorp_rank,positional_drop,cliff,snap_pct,target_share,air_yards_share,yprt,separation,cpoe,air_yards_per_att,pressure_rate_faced,time_to_throw,opportunity_share,yac_per_carry,broken_tackle_rate,route_pct,snap_pct_def,pressure_rate_pass_rush,pass_rush_win_rate,tackle_rate,proj_pts_2026,ceiling_score,floor_score,floor_score_v2,future_value,games_missed_2025,games_missed_2024,games_missed_2023,injury_type_history,games_played_pct_career,injury_risk_score,injury_risk_tier,master_score,bust_category,bust_reason,dp_value_2qb,dp_rank_2qb,dp_vs_my_rank,market_inefficiency,is_rookie,taxi_grade,rookie_context,depth_position,depth_role,is_handcuff,handcuff_of
+Josh Allen,QB,BUF,30,1,1,1,1,R1,0,0,Elite SF QB1 — BUF 10.5 wins — peak window now,91,91,109,,1,45,MAJOR,98,,,,,6.2,9.1,22,2.55,,,,,,,,,412,96,82,94,68,0,0,1,minor shoulder,97,1.4,🟢 LOW RISK,84.1,NONE,,10208,1,0,FAIR,0,NONE,,,,0,
+Drake Maye,QB,NE,23,2,2,1,1,R1,0,0,Young elite QB — age 23 ideal — NE 9.5 wins — decade cornerstone,45,45,63,,3,1,false,96,,,,,3.1,8.8,28,2.61,,,,,,,,,362,92,72,81,92,2,0,0,ankle,95,1.6,🟢 LOW RISK,80.4,NONE,,8800,3,1,FAIR,0,NONE,,,,0,
+Jayden Daniels,QB,WAS,26,3,3,1,1,R1,0,0,Elite dual-threat — WAS 7.5 wins concern but talent is elite,46,46,64,,2,1,false,97,,,,,4.8,8.2,26,2.42,,,,,,,,,368,91,74,86,88,0,0,0,None noted,98,0.3,🟢 LOW RISK,80.8,NONE,,7100,10,7,FAIR,0,NONE,,,,0,
+Lamar Jackson,QB,BAL,29,4,4,1,1,R1,0,0,BAL 11.5 wins Vegas darling — elite — 2-3yr window,44,44,62,,4,4,false,97,,,,,5.2,7.8,19,2.38,,,,,,,,,371,93,78,90,72,0,1,0,knee,84,0.4,🟢 LOW RISK,79.0,NONE,,6500,18,14,BUY,0,NONE,,,,0,
+Joe Burrow,QB,CIN,29,5,5,1,1,R1,0,0,CIN 10.5 wins — elite with Chase — minor injury history concern,30,30,48,,7,2,false,95,,,,,3.9,9.3,25,2.51,,,,,,,,,344,89,68,77,72,0,11,0,wrist ACL-equivalent,72,3.1,🟡 MODERATE,68.0,NONE,,5100,28,23,STRONG_BUY,0,NONE,,,,0,
+Caleb Williams,QB,CHI,24,6,6,1,1,R1,0,0,CHI 9.5 wins — age 24 upside — keep as ranked,13,13,31,,13,1,false,96,,,,,1.2,7.9,31,2.69,,,,,,,,,312,86,62,68,88,2,0,0,hamstring,94,2.0,🟢 LOW RISK,71.1,NONE,,5400,26,20,STRONG_BUY,0,NONE,,,,0,
+Patrick Mahomes,QB,KC,30,8,8,1,1,R1,0,0,KC 10.5 wins — elite but age 30 entering decline window,23,23,41,,11,5,true,97,,,,,2.4,8.1,23,2.72,,,,,,,,,334,86,76,85,62,0,0,0,ankle,94,0.3,🟢 LOW RISK,71.2,NONE,,5000,28,20,STRONG_BUY,0,NONE,,,,0,
+David Bailey,EDGE,NYJ,22,8,8,1,1,R1,0,1,1.02 overall pick — elite pass rusher — immediate IDP impact — NYJ pass rush featured player,,,,,,,,,,,,,,,,,,,,,,,,,225,90,72,72,86,0,0,0,None noted,100,1.5,🟢 LOW RISK,78.8,GEM,,4800,29,21,FAIR,1,ELITE_TAXI,1.02 overall pick — best pure pass rusher in 2026 class — starts immediately — top IDP value,,,0,
+Ja'Marr Chase,WR,CIN,25,9,9,1,1,R1,0,0,CIN 10.5 wins BOOST — elite WR1 prime age — keep as ranked,124,124,,,3,10,false,91,28,30,2.38,3.1,,,,,,,,,,,,,278,88,72,95,82,0,0,1,hamstring,96,1.0,🟢 LOW RISK,77.0,NONE,,9076,2,-7,FAIR,0,NONE,,,,0,
+Brock Bowers,TE,LVR,22,35,9,4,1,R1,26,1,TE PREMIUM MONSTER — age 22 — 100+ target pace — LVR targets — GEM,53,100.5,,47.5,2,16.5,true,90,23,17,1.76,2.3,,,,,,,,,,,,,212,82,72,88,88,0,0,0,None noted,100,0.5,🟢 LOW RISK,70.1,GEM,Value exceeds consensus rank by 10+ spots,6800,16,7,FAIR,0,NONE,,,,0,
+Justin Herbert,QB,LAC,28,10,10,1,1,R1,0,0,LAC 10.5 wins BOOST — elite SF QB — top value,18,18,36,,12,5,MAJOR,97,,,,,2.2,8.7,25,2.57,,,,,,,,,318,82,70,79,68,1,0,2,rib cartilage,91,1.5,🟢 LOW RISK,69.1,NONE,,4400,32,22,STRONG_BUY,0,NONE,,,,0,
+Arvell Reese,LB,NYG,22,10,10,1,1,R1,0,1,1.05 pick — tackle machine — could lead NFL in tackles Year 1 — NYG elite LB prospect,,,,,,,,,,,,,,,,,,,,,,,,,280,88,72,72,84,0,0,0,None noted,100,1.5,🟢 LOW RISK,79.2,GEM,,4200,35,25,FAIR,1,ELITE_TAXI,Pick 5 overall — tackle monster — range and instincts — Day 1 starter alongside Edmunds,,,0,
+Jalen Hurts,QB,PHI,27,11,11,2,2,R2,0,0,PHI 10.5 wins — elite dual-threat QB,40,40,58,,5,9,true,95,,,,,2.8,8.5,24,2.58,,,,,,,,,348,88,74,83,76,1,1,3,shoulder | clavicle,82,2.6,🟡 MODERATE,70.3,NONE,,5800,22,11,BUY,0,NONE,,,,0,
+Jahmyr Gibbs,RB,DET,24,12,12,2,2,R2,0,0,DET 10.5 wins BOOST — elite RB age 24 — premium situation,294,294,,,1,0,false,56,10,,,,,,,,28,2.9,22,45,,,,,322,90,76,95,88,1,2,0,hamstring,92,2.6,🟡 MODERATE,81.3,NONE,,7243,9,-3,FAIR,0,NONE,,,,0,
+Sonny Styles,LB,WAS,22,14,13,2,2,R2,1,0,Pick 7 overall — two-way impact LB — WAS 7.5 wins modest — top LB in class alongside Reese,,,,,,,,,,,,,,,,,,,,,,,,,240,82,65,65,76,0,0,0,None noted,100,1.8,🟢 LOW RISK,74.5,NONE,,3400,47,34,FAIR,1,STRONG_TAXI,Pick 7 overall — two-way impact — WAS system usage — strong IDP value even in year 1,,,0,
+Trevor Lawrence,QB,JAC,26,14,14,2,2,R2,0,0,JAC 8.5 wins — elite SF QB — starter upside remains,25,25,43,,9,0,false,96,,,,,1.8,8.4,27,2.63,,,,,,,,,316,81,66,72,74,0,3,1,ankle | shoulder,85,1.6,🟢 LOW RISK,68.8,NONE,,4600,29,15,BUY,0,NONE,,,,0,
+Rueben Bain Jr.,EDGE,MIA,22,16,14,2,2,R2,2,1,1.15 pick — most fantasy-ready pass rusher in class — explosive first step — wins immediately,,,,,,,,,,,,,,,,,,,,,,,,,195,85,65,65,82,0,0,0,None noted,100,2,🟢 LOW RISK,76.5,GEM,,3900,40,26,FAIR,1,ELITE_TAXI,Pick 15 overall — pairs with Anthony Hill Jr in MIA pass rush — most ready EDGE in class,,,0,
+Justin Jefferson,WR,MIN,27,15,15,2,2,R2,0,0,MIN 8.5 wins — elite WR — prime age window,80,80,,,10,4,false,89,25,26,2.28,3.0,,,,,,,,,,,,,256,82,68,88,72,1,4,0,hamstring,88,2.3,🟢 LOW RISK,69.4,NONE,,8032,5,-10,SELL,0,NONE,,,,0,
+Bijan Robinson,RB,ATL,24,7,16,1,2,R2,-9,0,ATL ONLY 6.5 WIN TOTAL — MAJOR BUST FLAG — overvalued consensus R1,294,294,,,2,48,true,62,13,,,,,,,,32,2.7,18,52,,,,,308,86,70,88,80,0,1,0,minor soft tissue,95,0.9,🟢 LOW RISK,82.6,NONE,,8032,4,-12,SELL,0,NONE,,,,0,
+Ashton Jeanty,RB,LVR,22,16,17,2,2,R2,-1,0,LVR 6.5 wins FADE — volume RB in bad offense — minor downgrade,202,202,,,7,0,false,68,9,,,,,,,,36,3.3,29,42,,,,,296,86,70,92,88,0,0,0,None noted,100,0.8,🟢 LOW RISK,81.1,NONE,,6455,10,-7,FAIR,0,NONE,,,,0,
+Jaxon Smith-Njigba,WR,SEA,23,17,18,2,2,R2,-1,0,SEA 10.5 wins BOOST — elite WR age 23 — keep near rank,142,142,,,2,18,false,86,22,20,2.15,2.7,,,,,,,,,,,,,262,80,64,79,84,0,1,0,shoulder,96,1.5,🟢 LOW RISK,72.0,NONE,,8639,3,-15,SELL,0,NONE,,,,0,
+Fernando Mendoza,QB,LV,22,18,18,2,2,R2,0,1,1.01 overall pick 2026 — SF QB value — LV building around him — Heisman winner — decade-long asset,,,,,,,,,,,,,,,,,,,,,,,,,310,88,62,62,85,0,0,0,None noted,100,1.5,🟢 LOW RISK,78.2,GEM,,6200,19,1,FAIR,1,ELITE_TAXI,1.01 overall pick — starting Day 1 in LV — Heisman + national champion — top SF QB asset in 2026 class,,,0,
+Omarion Hampton,RB,LAC,22,18,19,2,2,R2,-1,0,LAC 10.5 wins BOOST — premium situation — keep near rank,148,148,,,11,0,false,50,9,,,,,,,,22,2.7,18,40,,,,,244,78,60,75,86,0,0,0,None noted,100,0.8,🟢 LOW RISK,70.2,NONE,,5044,14,-5,FAIR,0,NONE,,,,0,
+Caleb Downs,DB,DAL,21,20,19,2,2,R2,1,0,Pick 11 overall — ballhawk safety — DAL 10.5 wins BOOST — INT upside is elite,,,,,,,,,,,,,,,,,,,,,,,,,195,80,62,62,76,0,0,0,None noted,100,1.8,🟢 LOW RISK,72.9,NONE,,3100,53,34,FAIR,1,STRONG_TAXI,Pick 11 — DAL 10.5 wins BOOST — ballhawk DB who can score TDs — elite secondary IDP asset,,,0,
+Puka Nacua,WR,LAR,24,19,20,2,2,R2,-1,0,LAR 11.5 wins BOOST — McVay offense — keep near rank,148,148,,,1,6,false,88,24,22,2.21,2.9,,,,,,,,,,,,,268,82,66,83,80,1,7,0,knee | thumb,82,2.0,🟢 LOW RISK,73.1,NONE,,7736,7,-13,SELL,0,NONE,,,,0,
+Carnell Tate,WR,TEN,21,22,20,2,2,R2,2,1,1.04 pick — alpha WR target for Cam Ward in ascending TEN offense — top-4 draft capital,,,,,,,,,,,,,,,,,,,,,,,,,175,86,58,58,83,0,0,0,None noted,100,1.8,🟢 LOW RISK,77.1,GEM,,5800,23,3,FAIR,1,ELITE_TAXI,1.04 overall pick — Cam Ward connection locked — target share alpha from Day 1,,,0,
+CeeDee Lamb,WR,DAL,27,20,21,2,3,R3,-1,0,DAL 9.5 wins — prime age but team win total declining,90,90,,,7,2,false,90,30,28,2.42,3.2,,,,,,,,,,,,,274,86,70,93,72,0,0,1,shoulder,97,1.5,🟢 LOW RISK,72.8,NONE,,7736,6,-15,SELL,0,NONE,,,,0,
+Jeremiyah Love,RB,ARI,22,13,22,2,3,R3,-9,0,ARI ONLY 3.5 WIN TOTAL — volume concern in worst offense — BUST,139,139,,,14,3,false,55,10,,,,,,,,28,3.0,24,42,,,,,248,76,60,79,84,3,0,0,soft tissue,88,3.2,🟡 MODERATE,65.2,NONE,,5904,12,-10,SELL,1,ELITE_TAXI,1.03 overall pick ARI — total package RB — receiving upside — ARI building around him long-term,,,0,
+Marvin Harrison Jr,WR,ARI,23,30,23,3,3,R3,7,0,Elite talent — age 23 — ARI 3.5 wins concern but talent keeps rank,72,72,,,12,4,false,87,24,25,2.14,2.9,,,,,,,,,,,,,238,80,62,79,84,2,0,0,soft tissue,94,1.6,🟢 LOW RISK,68.0,NONE,,4900,28,5,FAIR,0,NONE,,,,0,
+Malik Nabers,WR,NYG,23,21,24,3,3,R3,-3,0,NYG 7.5 wins concern — elite talent at 23 — slight downgrade,76,76,,,11,4,false,88,26,24,2.19,2.8,,,,,,,,,,,,,248,82,64,84,84,1,0,0,concussion,95,2.0,🟢 LOW RISK,70.2,NONE,,6232,11,-13,SELL,0,NONE,,,,0,
+Anthony Hill Jr.,EDGE,MIA,22,25,24,3,3,R3,1,0,Pick 60 R2 — complements Rueben Bain Jr in MIA pass rush — ascending role,,,,,,,,,,,,,,,,,,,,,,,,,160,78,55,55,72,0,0,0,None noted,100,2,🟢 LOW RISK,68.4,NONE,,2400,66,42,FAIR,1,STRONG_TAXI,R2 pick 60 — MIA tandem EDGE with Bain — complementary role but pass rush upside in year 2+,,,0,
+Amon-Ra St. Brown,WR,DET,26,23,25,3,3,R3,-2,0,DET 10.5 wins BOOST — reliable WR1 — keep near rank,114,114,,,4,9,false,89,23,19,2.08,2.6,,,,,,,,,,,,,252,78,68,83,72,0,0,0,None noted,98,0.4,🟢 LOW RISK,68.4,NONE,,7503,8,-17,SELL,0,NONE,,,,0,
+Brock Purdy,QB,SF,26,24,26,3,3,R3,-2,0,SF 10.5 wins BOOST — system QB risk — keep near rank,28,28,46,,8,3,false,96,,,,,2.1,8.0,21,2.59,,,,,,,,,322,82,72,81,68,1,0,7,elbow | forearm,82,1.8,🟢 LOW RISK,70.1,NONE,,3800,41,15,BUY,0,NONE,,,,0,
+Jadarian Price,RB,SEA,21,28,26,3,3,R3,2,0,SEA R1 RB — McDaniel scheme BOOST — ideal fit for zone-read system — SEA 10.5 wins BOOST,,,,,,,,,,,,,,,,,,,,,,,,,180,82,58,58,77,0,0,0,None noted,100,2,🟢 LOW RISK,72.8,NONE,,4500,31,5,FAIR,1,STRONG_TAXI,SEA R1 RB — McDaniel zone run scheme is RB gold — SEA 10.5 wins BOOST — best rookie RB in class,,,0,
+Abdul Carter,EDGE,PHI,23,80,27,8,3,R8,53,1,IDP MONSTER — proj 22 FPPG — age 23 — PHI 10.5 wins — GEM,,,,,,,,,,,,,,,,,,,,,78,,22,6,0,88,70,84,92,0,0,0,None noted,100,0.6,🟢 LOW RISK,52.8,GEM,Value exceeds consensus rank by 10+ spots,3500,46,19,BUY,0,NONE,,,,0,
+Aidan Hutchinson,EDGE,DET,26,85,28,9,3,R9,57,1,IDP ELITE — proj 22 FPPG — DET 10.5 wins — top IDP GEM,,,,,,,,,,,,,,,,,,,,,84,,25,7,0,86,72,86,76,0,8,0,tibia fracture,80,2.0,🟢 LOW RISK,49.6,GEM,Value exceeds consensus rank by 10+ spots,3200,51,23,STRONG_BUY,0,NONE,,,,0,
+Makai Lemon,WR,PHI,21,30,28,3,3,R3,2,0,PHI traded up — elite Eagles offensive system — potential deep target specialist,,,,,,,,,,,,,,,,,,,,,,,,,148,81,52,52,76,0,0,0,None noted,100,2,🟢 LOW RISK,70.2,NONE,,3100,53,25,FAIR,1,STRONG_TAXI,PHI traded up to get him — Eagles system boosts WR value — Hurts connection,,,0,
+Rome Odunze,WR,CHI,23,35,29,4,3,R4,6,0,CHI 9.5 wins — age 23 WR — Williams connection boosts value,68,68,,,13,4,false,82,20,21,1.96,2.6,,,,,,,,,,,,,232,76,60,72,82,1,0,0,wrist,97,2.3,🟢 LOW RISK,64.8,NONE,,4700,30,1,FAIR,0,NONE,,,,0,
+Brian Thomas Jr,WR,JAC,23,38,30,4,3,R4,8,1,Elite WR age 23 — Lawrence connection — JAC 8.5 wins — GEM,64,64,,,14,4,false,84,21,22,2.04,2.7,,,,,,,,,,,,,226,74,60,72,82,0,0,0,None noted,100,0.4,🟢 LOW RISK,63.9,GEM,Value exceeds consensus rank by 10+ spots,5200,27,-3,FAIR,0,NONE,,,,0,
+KC Concepcion,WR,CLE,21,33,30,3,3,R3,3,0,CLE R1 pick — ascending offense around Sanders — WR alpha target share opportunity,,,,,,,,,,,,,,,,,,,,,,,,,135,79,48,48,73,0,0,0,None noted,100,2,🟢 LOW RISK,68.1,NONE,,2600,63,33,FAIR,1,STRONG_TAXI,R1 pick for CLE — Sanders connection from draft capital — CLE 5.5 wins FADE but target share real,,,0,
+Will Anderson,EDGE,HOU,25,90,31,9,4,R9,59,1,IDP ELITE — proj 21 FPPG — HOU 9.5 wins — GEM,,,,,,,,,,,,,,,,,,,,,82,,24,6,0,84,70,84,82,0,0,2,shoulder,94,1.7,🟢 LOW RISK,50.0,GEM,Value exceeds consensus rank by 10+ spots,2800,58,27,STRONG_BUY,0,NONE,,,,0,
+Jared Verse,EDGE,CLE,24,95,32,10,4,R10,63,1,IDP ELITE — proj 19 FPPG — TRADED to CLE (Garrett trade June 2026) — GEM at R4 in weak market,,,,,,,,,,,,,,,,,,,,,80,,21,6,0,82,66,80,84,0,0,0,None noted,100,0.6,🟢 LOW RISK,49.2,GEM,Value exceeds consensus rank by 10+ spots,2600,63,31,STRONG_BUY,0,NONE,,,,0,
+Jordyn Tyson,WR,TEN,21,35,32,4,3,R3,3,0,R1 pick — pairs with Tate + Ward in TEN — secondary target share alpha opportunity,,,,,,,,,,,,,,,,,,,,,,,,,140,80,50,50,74,0,0,0,None noted,100,2,🟢 LOW RISK,69.4,NONE,,2800,58,26,FAIR,1,STRONG_TAXI,R1 pick — Ward offense upside — shares targets with Tate — STRONG_TAXI dart throw,,,0,
+Jonathan Taylor,RB,IND,26,22,33,3,4,R4,-11,0,Injury history — age 26 on RB age curve — IND 7.5 wins — BUST,244,244,,,4,16,false,55,8,,,,,,,,25,2.8,19,40,,,,,278,80,58,75,62,4,1,7,hamstring | ankle,75,4.2,🟡 MODERATE,66.4,NONE,,3600,44,11,BUY,0,NONE,,,,0,
+Trey McBride,TE,ARI,26,50,34,5,4,R5,16,1,TE PREMIUM — 100+ target pace — ARI context concern but volume real — GEM,55,105.0,,50.0,1,4.5,false,92,25,18,1.82,2.4,,,,,,,,,,,,,214,80,72,91,78,0,0,0,None noted,98,0.5,🟢 LOW RISK,68.6,GEM,Value exceeds consensus rank by 10+ spots,4200,33,-1,FAIR,0,NONE,,,,0,
+Drake London,WR,ATL,25,25,35,3,4,R4,-10,0,ATL 6.5 WIN TOTAL FADE — team context destroys dynasty value,105,105,,,5,11,false,87,22,21,1.94,2.4,,,,,,,,,,,,,238,76,62,75,78,0,1,2,ankle,90,0.6,🟢 LOW RISK,66.3,NONE,,5699,13,-22,STRONG_SELL,0,NONE,,,,0,
+Drake London,WR,ATL,25,25,35,3,4,R4,-10,0,ATL 6.5 WIN TOTAL — team context destroys value — BUST,105,105,,,5,11,false,87,22,21,1.94,2.4,,,,,,,,,,,,,238,76,62,75,78,0,1,2,ankle,90,0.6,🟢 LOW RISK,66.3,NONE,,5699,13,-22,STRONG_SELL,0,NONE,,,,0,
+Sam LaPorta,TE,DET,25,55,36,6,4,R6,19,1,TE PREMIUM — DET 10.5 wins high-octane offense — undervalued — GEM,25,62.5,,37.5,8,9.0,false,82,18,13,1.58,2.0,,,,,,,,,,,,,188,72,62,67,76,0,3,0,knee,91,0.7,🟢 LOW RISK,58.5,GEM,Value exceeds consensus rank by 10+ spots,3800,41,5,FAIR,0,NONE,,,,0,
+Omar Cooper Jr.,WR,NYJ,22,38,36,4,4,R4,2,0,NYJ R1 pick — crowded target share risk — upside capped by NYJ 5.5 win FADE situation,,,,,,,,,,,,,,,,,,,,,,,,,128,76,44,44,70,0,0,0,None noted,100,2,🟢 LOW RISK,65.3,NONE,,2200,72,36,FAIR,1,STRONG_TAXI,R1 pick NYJ — scheme risk from 5.5 win total — target share battle in crowded room,,,0,
+Micah Parsons,EDGE,DAL,27,40,38,4,4,R4,2,0,ACL INJURY RISK — uncertain 2026 availability — downgrade from consensus,,,,,,,,,,,,,,,,,,,,,0,,0,0,0,86,28,28,68,10,0,0,ACL,82,7.8,🔴 HIGH RISK,26.6,NONE,,2000,77,39,STRONG_BUY,0,NONE,,,,0,
+Travis Hunter,WR,JAC,23,45,39,5,4,R5,6,0,Two-way talent — JAC 8.5 wins — age 23 — monster upside GEM,60,60,,,15,5,false,62,16,17,1.88,2.8,,,,,,,,,,,,,188,74,54,58,84,0,0,0,None noted,100,0.4,🟢 LOW RISK,58.6,NONE,,5500,25,-14,SELL,0,NONE,,,,0,
+Jack Campbell,LB,DET,26,100,40,10,4,R10,60,1,IDP 20 FPPG TACKLE MONSTER — DET 10.5 wins — LB1 — GEM,,,,,,,,,,,,,,,,,,,,,90,,8,18,0,78,70,84,76,0,1,0,ankle,97,0.6,🟢 LOW RISK,47.6,GEM,Value exceeds consensus rank by 10+ spots,2200,72,32,STRONG_BUY,0,NONE,,,,0,
+Denzel Boston,WR,CLE,22,42,40,4,4,R4,2,0,CLE R2 WR — pairs with KC Concepcion — shares target budget in Sanders-led offense,,,,,,,,,,,,,,,,,,,,,,,,,112,73,40,40,70,0,0,0,None noted,100,2,🟢 LOW RISK,62.8,NONE,,1900,80,40,FAIR,1,STRONG_TAXI,CLE R2 pick — stacks with Concepcion — one of them wins target battle — speculation on which,,,0,
+Ladd McConkey,WR,LAC,24,50,42,5,5,R5,8,1,LAC 10.5 wins BOOST — age 24 WR — undervalued — GEM,25,25,,,26,5,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.8,GEM,Value exceeds consensus rank by 10+ spots,3700,43,1,FAIR,0,NONE,,,,0,
+De'Zhaun Stribling,WR,SF,22,40,42,4,5,R5,-2,0,SF R2 WR — CBS Sports cautious: "not ranking nearly as high as most" — 49ers system could boost,,,,,,,,,,,,,,,,,,,,,,,,,118,74,42,42,70,0,0,0,None noted,100,2,🟢 LOW RISK,63.2,NONE,,2100,74,32,FAIR,1,STRONG_TAXI,R2 pick SF — CBS Sports lower on him than market — 49ers system upside real — WAIT on ADP,,,0,
+Kenyon Sadiq,TE,NYJ,22,44,42,4,5,R5,2,0,NYJ R2 TE — ascending TE target in NYJ offense — long development window,,,,,,,,,,,,,,,,,,,,,,,,,90,76,38,38,72,0,0,0,None noted,100,2,🟢 LOW RISK,62.1,NONE,,1800,82,40,FAIR,1,STRONG_TAXI,R2 TE NYJ — ascending target share — NYJ 5.5 FADE a concern but TE premium scoring helps,,,0,
+Luther Burden,WR,CHI,22,55,43,6,5,R6,12,1,Age 22 WR — CHI offense upside — Williams connection — GEM,42,42,,,20,3,false,68,15,16,1.8,2.5,,,,,,,,,,,,,186,72,50,52,82,0,0,0,None noted,100,0.4,🟢 LOW RISK,55.9,GEM,Value exceeds consensus rank by 10+ spots,4600,29,-14,SELL,0,NONE,,,,0,
+Shedeur Sanders,QB,CLE,24,60,44,6,5,R6,16,1,Starting QB age 24 — CLE 5.5 wins FADE context — strong SF value,0,0,18,,22,0,false,95,,,,,0.8,7.2,35,2.71,,,,,,,,,272,80,54,60,82,1,0,0,rib,96,1.4,🟢 LOW RISK,63.8,GEM,Value exceeds consensus rank by 10+ spots,4000,38,-6,FAIR,0,NONE,,,,0,
+Kenneth Walker III,RB,SEA,25,48,44,5,5,R5,4,0,SEA 10.5 wins BOOST — age 25 RB — solid value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Jordan Addison,WR,MIN,24,55,45,6,5,R6,10,1,MIN 8.5 wins — age 24 WR — step-up role — undervalued GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+Ty Simpson,QB,LAR,22,48,45,5,5,R5,3,0,LAR R1 QB — Stafford successor — McVay scheme — learning year before taking over,,,,,,,,,,,,,,,,,,,,,,,,,120,78,40,40,75,0,0,0,None noted,100,1.8,🟢 LOW RISK,65,NONE,,3200,51,6,FAIR,1,STRONG_TAXI,Stafford heir in McVay system — LAR 11.5 wins BOOST team context — take the upside stash,,,0,
+Jaxson Dart,QB,NYG,23,70,46,7,5,R7,24,1,Starting QB age 23 — NYG 7.5 wins — SF premium dynasty asset — GEM,31,31,49,,6,1,false,94,,,,,1.4,7.6,30,2.67,,,,,,,,,295,82,58,61,84,0,0,0,None noted,98,0.3,🟢 LOW RISK,67.5,GEM,Value exceeds consensus rank by 10+ spots,5600,24,-22,STRONG_SELL,0,NONE,,,,0,
+TreVeyon Henderson,RB,NE,23,65,47,7,5,R7,18,1,Age 23 RB — NE 9.5 wins — youth premium — GEM target,110,110,,,19,5,false,44,9,,,,,,,,18,2.6,16,38,,,,,218,72,52,60,78,2,3,1,shoulder | ankle,82,3.3,🟡 MODERATE,57.0,GEM,Value exceeds consensus rank by 10+ spots,4100,37,-10,SELL,0,NONE,,,,0,
+De'Von Achane,RB,MIA,23,40,48,4,5,R4,-8,0,MIA 4.5 WIN TOTAL FADE — huge bust flag — avoid near consensus,228,228,,,5,21,false,54,14,,,,,,,,24,3.1,26,55,,,,,274,84,56,75,80,3,4,0,hamstring | hamstring,79,5.0,🟠 ELEVATED,63.0,BUY_LOW,Age 23 high-upside stash — injury risk 5/10 suppressing market,5100,28,-20,STRONG_SELL,0,NONE,,,,0,
+George Pickens,WR,DAL,25,52,48,6,5,R6,4,0,DAL 9.5 wins — age 25 WR — opportunity moved teams,88,88,,,8,5,false,82,18,22,1.98,2.6,,,,,,,,,,,,,236,76,58,65,72,2,1,2,hamstring | hamstring,86,3.3,🟡 MODERATE,58.0,NONE,,4400,32,-16,SELL,0,NONE,,,,0,
+Carson Schwesinger,LB,TEN,25,105,49,11,5,R11,56,1,IDP top-5 scorer — 19 FPPG — LB1 TEN — age 25 — GEM,,,,,,,,,,,,,,,,,,,,,88,,7,17,0,76,68,82,78,0,0,0,None noted,100,0.5,🟢 LOW RISK,47.2,GEM,Value exceeds consensus rank by 10+ spots,1800,82,33,STRONG_BUY,0,NONE,,,,0,
+Quinshon Judkins,RB,CLE,23,68,50,7,6,R7,18,1,Age 23 RB — CLE 5.5 wins concern — raw talent premium — GEM,105,105,,,20,5,false,46,8,,,,,,,,19,2.7,17,35,,,,,214,70,50,61,76,0,0,0,None noted,100,0.8,🟢 LOW RISK,60.2,GEM,Value exceeds consensus rank by 10+ spots,3600,44,-6,FAIR,0,NONE,,,,0,
+James Cook,RB,BUF,26,55,51,6,6,R6,4,0,BUF 10.5 wins BOOST — age 26 RB — solid value,191,191,,,9,2,false,58,11,,,,,,,,27,2.9,21,46,,,,,272,78,64,83,72,1,0,2,ankle,91,2.0,🟢 LOW RISK,72.4,NONE,,3500,46,-5,FAIR,0,NONE,,,,0,
+Kyle Pitts,TE,ATL,25,60,52,6,6,R6,8,0,ATL 6.5 wins FADE — talent exists but team context destroys value,27,62.0,,35.0,6,3.5,false,78,17,14,1.62,2.2,,,,,,,,,,,,,174,76,44,46,68,3,2,10,knee | ankle,71,3.5,🟡 MODERATE,48.8,NONE,,,,,,0,NONE,,,,0,
+Keon Coleman,WR,BUF,23,62,53,7,6,R7,9,1,BUF 10.5 wins BOOST — age 23 WR — Allen connection — GEM,36,36,,,22,3,false,70,15,17,1.78,2.3,,,,,,,,,,,,,182,66,48,48,70,3,0,0,wrist,88,3.6,🟡 MODERATE,47.4,GEM,Value exceeds consensus rank by 10+ spots,3200,51,-2,FAIR,0,NONE,,,,0,
+Nik Bonitto,EDGE,DEN,25,90,54,9,6,R9,36,1,DEN 9.5 wins — proj 17 FPPG EDGE — age 25 — undervalued IDP GEM,,,,,,,,,,,,,,,,,,,,,76,,18,5,0,70,58,69,68,2,1,0,hamstring,88,2.4,🟢 LOW RISK,41.4,GEM,Value exceeds consensus rank by 10+ spots,1600,88,34,STRONG_BUY,0,NONE,,,,0,
+Kyle Hamilton,DB,BAL,25,80,55,8,6,R8,25,1,BAL 11.5 wins BOOST — proj 17 FPPG DB — age 25 — elite IDP GEM,,,,,,,,,,,,,,,,,,,,,84,,10,13,0,74,66,77,76,0,0,1,minor,97,0.3,🟢 LOW RISK,45.4,GEM,Value exceeds consensus rank by 10+ spots,2100,74,19,BUY,0,NONE,,,,0,
+Garrett Wilson,WR,NYJ,25,45,55,5,6,R5,-10,0,NYJ 5.5 WIN TOTAL FADE — elite talent trapped on sinking ship,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,NONE,,3500,46,-9,FAIR,0,NONE,,,,0,
+Myles Garrett,EDGE,LAR,30,55,56,6,6,R6,-1,0,Age 30 IDP — TRADED to LAR (11.5 wins) — elite FPPG but dynasty sunset — fade late,,,,,,,,,,,,,,,,,,,,,86,,28,7,0,84,60,74,52,0,0,0,minor,93,0.6,🟢 LOW RISK,42.0,NONE,,1800,82,26,STRONG_BUY,0,NONE,,,,0,
+Kyren Williams,RB,LAR,25,60,57,6,6,R6,3,0,LAR 11.5 wins BOOST — age 25 RB — solid value,146,146,,,13,7,false,58,10,,,,,,,,26,2.7,19,44,,,,,246,72,58,73,66,3,8,0,hamstring | ankle,72,4.3,🟡 MODERATE,60.1,NONE,,4200,33,-24,STRONG_SELL,0,NONE,,,,0,
+Rashee Rice,WR,KC,25,70,58,7,6,R7,12,1,KC 10.5 wins BOOST — age 25 WR — ACL recovery concern — GEM if healthy,94,94,,,6,4,false,84,20,22,2.02,2.5,,,,,,,,,,,,,242,78,52,64,78,4,8,0,knee ACL | shoulder,74,5.5,🟠 ELEVATED,54.1,GEM,Value exceeds consensus rank by 10+ spots,4800,28,-30,STRONG_SELL,0,NONE,,,,0,
+Zack Baun,LB,PHI,27,95,59,10,6,R10,36,1,PHI 10.5 wins BOOST — proj 18 FPPG LB — elite situation — GEM,,,,,,,,,,,,,,,,,,,,,82,,9,16,0,72,62,76,66,0,1,2,ankle,88,0.7,🟢 LOW RISK,42.8,GEM,Value exceeds consensus rank by 10+ spots,1500,90,31,STRONG_BUY,0,NONE,,,,0,
+Derwin James,DB,LAC,29,75,60,8,6,R8,15,1,LAC 10.5 wins BOOST — proj 18 FPPG DB — solid IDP value,,,,,,,,,,,,,,,,,,,,,80,,12,12,0,70,42,56,52,3,6,8,knee | foot,68,3.5,🟡 MODERATE,33.1,GEM,Value exceeds consensus rank by 10+ spots,1700,85,25,STRONG_BUY,0,NONE,,,,0,
+Xavier Worthy,WR,KC,23,75,61,8,7,R8,14,1,KC 10.5 wins BOOST — age 23 WR — Mahomes connection — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,3900,40,-21,STRONG_SELL,0,NONE,,,,0,
+Jerry Jeudy,WR,CLE,27,82,62,9,7,R9,20,1,CLE 5.5 wins FADE — age 27 WR — solid WR2 talent,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+Jordan Love,QB,GB,27,72,62,8,7,R8,10,1,GB 10.5 wins BOOST — age 27 QB — elite supporting cast — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,5200,27,-35,STRONG_SELL,0,NONE,,,,0,
+Cooper Kupp,WR,LAR,32,45,62,5,7,R5,-17,0,AGE 32 WR — dynasty bust — LAR offense has moved on — BUST FLAG,,,,,,,,,,,,,,,,,,,,,,,,,162,68,30,30,38,6,5,0,Achilles | ankle,64,6.5,🟠 ELEVATED,32.6,DECLINING,Age 32 — consensus 45 overvalues by 17 spots vs my rank 62,,,,,0,NONE,,,,0,
+Germie Bernard,WR,PIT,22,58,62,6,7,R7,-4,0,PIT R2 pick 47 — crowded WR room — PIT 10.5 wins BOOST context helps,,,,,,,,,,,,,,,,,,,,,,,,,100,72,40,40,63,0,0,0,None noted,100,2.2,🟢 LOW RISK,58.4,NONE,,1600,88,26,FAIR,1,SPECULATIVE,PIT R2 pick — crowded WR depth in PIT — Wait to see who wins target battle before drafting,,,0,
+Javonte Williams,RB,DEN,25,88,63,9,7,R9,25,1,DEN 9.5 wins — age 25 RB — healthy upside — GEM,100,100,,,21,5,false,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,40.3,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+Anthony Richardson,QB,IND,23,82,63,9,7,R9,19,1,Age 23 QB — IND 7.5 wins — massive ceiling if healthy — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,3700,43,-20,STRONG_SELL,0,NONE,,,,0,
+Zay Flowers,WR,BAL,25,72,64,8,7,R8,8,1,BAL 11.5 wins BOOST — age 25 WR — excellent situation — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,3400,47,-17,SELL,0,NONE,,,,0,
+Breece Hall,RB,NYJ,24,58,65,6,7,R6,-7,0,NYJ 5.5 WIN TOTAL FADE — elite talent trapped on bad team,148,148,,,12,2,false,60,14,,,,,,,,28,2.9,22,54,,,,,258,76,56,78,70,4,2,8,ACL,71,5.8,🟠 ELEVATED,57.3,BUY_LOW,Age 24 high-upside stash — injury risk 5.8/10 suppressing market,3300,49,-16,SELL,0,NONE,,,,0,
+Rhamondre Stevenson,RB,NE,26,72,65,8,7,R8,7,0,NE 9.5 wins — age 26 RB — Henderson sharing concern,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Fred Warner,LB,SF,29,85,66,9,7,R9,19,1,SF 10.5 wins BOOST — proj 16 FPPG LB — reliable IDP — GEM,,,,,,,,,,,,,,,,,,,,,86,,6,17,0,66,60,74,58,1,0,1,minor,95,1.7,🟢 LOW RISK,39.6,GEM,Value exceeds consensus rank by 10+ spots,1400,93,27,STRONG_BUY,0,NONE,,,,0,
+Quay Walker,LB,GB,26,95,67,10,7,R10,28,1,GB 10.5 wins BOOST — proj 16 FPPG LB — elite situation — GEM,,,,,,,,,,,,,,,,,,,,,84,,6,16,0,66,58,72,62,2,1,0,ankle,89,1.8,🟢 LOW RISK,40.0,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+Isiah Pacheco,RB,KC,27,65,67,7,7,R7,-2,0,KC 10.5 wins BOOST — age 27 RB — declining dynasty window,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Quay Walker,LB,GB,26,95,67,10,7,R10,28,1,GB 10.5 wins BOOST — elite LB situation — GEM,,,,,,,,,,,,,,,,,,,,,84,,6,16,0,66,58,72,62,2,1,0,ankle,89,1.8,🟢 LOW RISK,40.0,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+Jake Ferguson,TE,DAL,25,75,68,8,7,R8,7,0,DAL 9.5 wins — age 25 TE — solid dynasty value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Carson Beck,QB,ARI,23,65,68,7,8,R8,-3,0,R3 pick — ARI backup to start — 3.5 win FADE team — deep dynasty stash only,,,,,,,,,,,,,,,,,,,,,,,,,80,70,35,35,62,0,0,0,None noted,100,2.2,🟢 LOW RISK,55.2,NONE,,1200,98,30,FAIR,1,SPECULATIVE,R3 ARI — behind Love at the depth chart — taxi squad stash — ARI 3.5 wins FADE,,,0,
+Bo Nix,QB,DEN,25,78,69,8,7,R8,9,1,DEN 9.5 wins — age 25 QB — improving — value pick,10,10,28,,15,3,MAJOR,95,,,,,0.9,7.4,29,2.68,,,,,,,,,278,72,58,64,68,,,,,,0.3,🟢 LOW RISK,61.0,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+Isaiah Likely,TE,BAL,25,88,69,9,7,R9,19,1,BAL 11.5 wins BOOST — age 25 TE — premium situation — GEM,17,44.5,,27.5,11,0.0,false,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,38.5,GEM,Value exceeds consensus rank by 10+ spots,2600,63,-6,FAIR,0,NONE,,,,0,
+Dameon Pierce,RB,HOU,26,98,70,10,7,R10,28,1,HOU 9.5 wins — age 26 RB — strong situation value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+Xavier McKinney,DB,GB,26,100,71,10,8,R10,29,1,GB 10.5 wins BOOST — proj 15 FPPG DB — undervalued IDP,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+Sam Darnold,QB,MIN,28,75,72,8,8,R8,3,0,MIN 8.5 wins — bridge QB — limited dynasty upside,0,0,18,,21,0,false,93,,,,,0.4,7.1,28,2.73,,,,,,,,,274,68,54,57,56,2,1,8,ankle | foot,75,2.0,🟢 LOW RISK,55.8,NONE,,,,,,0,NONE,,,,0,
+Drew Allar,QB,PIT,23,70,72,7,8,R8,-2,0,R2 pick PIT — developmental — Wilson successor — learning under Russ 2026,,,,,,,,,,,,,,,,,,,,,,,,,85,72,38,38,64,0,0,0,None noted,100,2,🟢 LOW RISK,56.8,NONE,,1400,93,21,FAIR,1,SPECULATIVE,PIT R2 pick — Wilson successor — taxi squad — PIT is a winning organization,,,0,
+D'Andre Swift,RB,CHI,26,78,73,8,8,R8,5,0,CHI 9.5 wins — age 26 RB — solid depth value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Roquan Smith,LB,BAL,28,88,74,9,8,R9,14,1,BAL 11.5 wins BOOST — age 28 LB — solid IDP value — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,1600,88,14,BUY,0,NONE,,,,0,
+Chop Robinson,EDGE,MIA,23,110,75,11,8,R11,35,1,Age 23 EDGE stash — proj 12 FPPG — upside GEM despite MIA 4.5 wins,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,2400,66,-9,FAIR,0,NONE,,,,0,
+Dalton Kincaid,TE,BUF,25,80,75,8,8,R8,5,0,BUF 10.5 wins BOOST — age 25 TE — Allen connection value,6,28.5,,22.5,15,0,false,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,38.0,NONE,,,,,,0,NONE,,,,0,
+Jaylen Warren,RB,PIT,26,90,76,9,8,R9,14,1,PIT 8.5 wins — age 26 RB — limited lead back potential,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+Tank Dell,WR,HOU,25,68,77,7,8,R7,-9,0,HOU 9.5 wins — age 25 WR — injury concern is real concern,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Dak Prescott,QB,DAL,32,68,78,7,8,R7,-10,0,Age 32 QB entering decline — injury history — slight bust,25,25,43,,10,2,false,93,,,,,1.9,8.2,26,2.61,,,,,,,,,308,78,64,67,56,4,0,3,hamstring | hand,76,3.4,🟡 MODERATE,58.6,DECLINING,Age 32 — consensus 68 overvalues by 10 spots vs my rank 78,3400,47,-31,STRONG_SELL,0,NONE,,,,0,
+Brian Robinson Jr,RB,WAS,27,80,78,8,8,R8,2,0,WAS 7.5 wins — age 27 RB — limited upside,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Rashan Gary,EDGE,GB,28,82,78,9,8,R9,4,0,GB 10.5 wins BOOST — age 28 EDGE — solid value,,,,,,,,,,,,,,,,,,,,,74,,16,5,0,68,40,47,56,0,0,10,ACL,75,3.1,🟡 MODERATE,31.8,NONE,,,,,,0,NONE,,,,0,
+Nicholas Singleton,RB,TEN,22,75,78,8,9,R9,-3,0,TEN R5 pick 165 — handcuff to monitor — TEN offense improving,,,,,,,,,,,,,,,,,,,,,,,,,80,68,35,35,60,0,0,0,None noted,100,2,🟢 LOW RISK,53.1,NONE,,900,110,32,FAIR,1,SPECULATIVE,TEN R5 pick — pure taxi stash — handcuff Price eventually — age 22 upside only,,,0,
+T.J. Watt,EDGE,PIT,30,72,79,8,8,R8,-7,0,Age 30 EDGE — PIT 8.5 wins — declining dynasty window,,,,,,,,,,,,,,,,,,,,,82,,23,6,0,72,58,72,54,1,0,3,pec,84,2.7,🟡 MODERATE,36.8,NONE,,,,,,0,NONE,,,,0,
+Laiatu Latu,EDGE,LAC,24,115,80,12,8,R12,35,1,Age 24 EDGE stash — proj 12 FPPG — LAC 10.5 wins BOOST — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,2300,69,-11,SELL,0,NONE,,,,0,
+Minkah Fitzpatrick,DB,PIT,28,88,81,9,9,R9,7,0,PIT 8.5 wins — age 28 DB — solid IDP value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Dallas Turner,EDGE,MIN,23,118,82,12,9,R12,36,1,Age 23 EDGE stash — MIN 8.5 wins — developmental GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,2000,77,-5,FAIR,0,NONE,,,,0,
+Travon Walker,EDGE,JAC,25,92,82,10,9,R10,10,1,JAC 8.5 wins — age 25 EDGE — developmental upside — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+David Njoku,TE,CLE,29,85,82,9,9,R9,3,0,CLE 5.5 wins FADE — age 29 TE — declining value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Brian Burns,EDGE,NYG,27,88,83,9,9,R9,5,0,NYG 7.5 wins — age 27 EDGE — solid IDP value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Tyjae Spears,RB,TEN,24,88,84,9,9,R9,4,0,TEN 6.5 wins FADE — age 24 upside — developmental,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Bralen Trice,EDGE,SEA,23,120,85,12,9,R12,35,1,Age 23 EDGE stash — SEA 10.5 wins BOOST — developmental GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,1900,80,-5,FAIR,0,NONE,,,,0,
+Talanoa Hufanga,DB,SF,26,95,85,10,9,R10,10,1,SF 10.5 wins BOOST — age 26 DB — strong situation — GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,1100,102,17,BUY,0,NONE,,,,0,
+Terry McLaurin,WR,WAS,30,75,85,8,9,R8,-10,0,WAS 7.5 wins — age 30 WR — declining window — bust,55,55,,,16,3,false,81,18,20,1.92,2.5,,,,,,,,,,,,,204,68,56,63,56,2,1,1,hamstring,89,2.3,🟢 LOW RISK,53.8,DECLINING,Age 30 — consensus 75 overvalues by 10 spots vs my rank 85,2900,56,-29,STRONG_SELL,0,NONE,,,,0,
+Maxx Crosby,EDGE,LVR,28,85,86,9,9,R9,-1,0,LVR 6.5 wins FADE — age 28 — slight decline concern,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Josh Sweat,EDGE,PHI,28,95,87,10,9,R10,8,1,PHI 10.5 wins BOOST — age 28 EDGE — excellent situation GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+Patrick Queen,LB,PIT,27,92,87,10,9,R10,5,0,PIT 8.5 wins — age 27 LB — solid dynasty value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Tony Pollard,RB,TEN,28,85,88,9,9,R9,-3,0,TEN 6.5 wins FADE — age 28 RB — declining window,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Najee Harris,RB,PIT,27,92,89,10,9,R10,3,0,PIT 8.5 wins — age 27 RB — limited ceiling,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Devin White,LB,PHI,27,100,90,10,9,R10,10,1,PHI 10.5 wins BOOST — age 27 LB — situational IDP value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,,,,,0,NONE,,,,0,
+Rashid Shaheed,WR,NO,27,95,90,10,9,R10,5,0,NO 7.5 wins — age 27 WR — deep sleeper value,39,39,,,21,3,false,72,16,18,2.24,2.9,,,,,,,,,,,,,188,70,46,50,64,4,3,0,hamstring | knee,78,3.6,🟡 MODERATE,47.9,NONE,,,,,,0,NONE,,,,0,
+Tua Tagovailoa,QB,MIA,28,85,90,9,9,R9,-5,0,MIA 4.5 wins FADE — injury concern — down on team context,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,SCHEME_RISK,FADE team win total — game scripts crater QB value at age 28,,,,,0,NONE,,,,0,
+Baker Mayfield,QB,TB,31,80,92,8,10,R8,-12,0,TB 8.5 wins — age 31 QB — limited dynasty upside,7,7,25,,16,1,false,92,,,,,1.5,7.8,27,2.62,,,,,,,,,282,74,60,63,54,1,0,2,shoulder,80,2.5,🟢 LOW RISK,58.6,RENTAL,Age 31 — 282 proj pts but future_value=54 — 1-2yr window only,,,,,0,NONE,,,,0,
+Jordyn Brooks,LB,SEA,27,105,95,11,10,R11,10,1,SEA 10.5 wins BOOST — age 27 LB — undervalued GEM,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,900,110,15,BUY,0,NONE,,,,0,
+Trey Hendrickson,EDGE,CIN,31,80,95,8,10,R8,-15,0,Age 31 EDGE entering decline — CIN 10.5 wins only saves near-term,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,DECLINING,Age 31 — consensus 80 overvalues by 15 spots vs my rank 95,,,,,0,NONE,,,,0,
+Tyreek Hill,WR,MIA,32,70,95,7,10,R7,-25,0,Age 32 — MIA 4.5 wins FADE — double bust flag — avoid,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,DECLINING,Age 32 — consensus 70 overvalues by 25 spots vs my rank 95,,,,,0,NONE,,,,0,
+Treylon Burks,WR,TEN,25,108,98,11,10,R11,10,1,TEN 6.5 wins FADE — age 25 — developmental deep value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,GEM,Value exceeds consensus rank by 10+ spots,1400,93,-5,FAIR,0,NONE,,,,0,
+Courtland Sutton,WR,DEN,30,90,100,9,10,R9,-10,0,DEN 9.5 wins — age 30 WR — declining window — bust,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,DECLINING,Age 30 — consensus 90 overvalues by 10 spots vs my rank 100,,,,,0,NONE,,,,0,
+Greg Dulcich,TE,DEN,25,115,108,12,11,R12,7,0,DEN 9.5 wins — age 25 TE — developmental value,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,NONE,,,,,,0,NONE,,,,0,
+Budda Baker,DB,ARI,29,100,115,10,12,R10,-15,0,ARI 3.5 wins FADE — age 29 DB — bust flag,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,DECLINING,Age 29 — consensus 100 overvalues by 15 spots vs my rank 115,,,,,0,NONE,,,,0,
+Aaron Jones,RB,MIN,31,95,118,10,12,R10,-23,0,Age 31 RB — dynasty bust — never draft,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 31 — consensus 95 overvalues by 23 spots vs my rank 118,,,,,0,NONE,,,,0,
+Davante Adams,WR,FA,33,90,118,9,12,R9,-28,0,Age 33 — unsigned — dynasty bust — avoid,16,16,,,28,3,true,,,,,,,,,,,,,,,,,,178,64,46,46,36,2,1,0,hamstring,89,2.2,🟢 LOW RISK,42.4,DECLINING,Age 33 — consensus 90 overvalues by 28 spots vs my rank 118,,,,,0,NONE,,,,0,
+Elijah Mitchell,RB,SF,28,108,118,11,12,R11,-10,0,SF 10.5 wins — age 28 RB — handcuff value only,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 28 — consensus 108 overvalues by 10 spots vs my rank 118,,,,,0,NONE,,,,0,
+Devin Singletary,RB,NYG,28,110,120,11,12,R11,-10,0,NYG 7.5 wins — age 28 RB — limited upside — bust,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 28 — consensus 110 overvalues by 10 spots vs my rank 120,,,,,0,NONE,,,,0,
+Alvin Kamara,RB,NO,31,100,125,10,13,R10,-25,0,Age 31 RB — NO 7.5 wins — dynasty bust — avoid,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 31 — consensus 100 overvalues by 25 spots vs my rank 125,,,,,0,NONE,,,,0,
+Haason Reddick,EDGE,FA,31,110,130,11,13,R11,-20,0,Age 31 — unsigned — dynasty bust — avoid entirely,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.6,🟢 LOW RISK,37.0,DECLINING,Age 31 — consensus 110 overvalues by 20 spots vs my rank 130,,,,,0,NONE,,,,0,
+Stefon Diggs,WR,FA,32,105,130,11,13,R11,-25,0,Age 32 — unsigned — dynasty bust — avoid,48,48,,,18,3,false,,,,,,,,,,,,,,,,,,172,60,40,40,36,5,4,0,ACL | ankle,80,6.3,🟠 ELEVATED,34.5,DECLINING,Age 32 — consensus 105 overvalues by 25 spots vs my rank 130,1200,98,-32,STRONG_SELL,0,NONE,,,,0,
+Evan Engram,TE,JAC,32,110,130,11,13,R11,-20,0,Age 32 TE — dynasty bust — avoid,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,DECLINING,Age 32 — consensus 110 overvalues by 20 spots vs my rank 130,,,,,0,NONE,,,,0,
+Amari Cooper,WR,BUF,31,110,132,11,14,R11,-22,0,Age 31 WR — dynasty bust — avoid,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,DECLINING,Age 31 — consensus 110 overvalues by 22 spots vs my rank 132,,,,,0,NONE,,,,0,
+Isaiah Simmons,DB,ARI,27,125,135,13,14,R13,-10,0,ARI 3.5 wins FADE — scheme concern — dynasty bust,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,DECLINING,Age 27 — consensus 125 overvalues by 10 spots vs my rank 135,,,,,0,NONE,,,,0,
+Gus Edwards,RB,BAL,30,115,135,12,14,R12,-20,0,Age 30 RB — dynasty bust — avoid,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 30 — consensus 115 overvalues by 20 spots vs my rank 135,,,,,0,NONE,,,,0,
+Bobby Wagner,LB,SEA,35,120,145,12,15,R12,-25,0,AGE 35 — pure dynasty bust — never draft in any format,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.5,🟢 LOW RISK,37.0,DECLINING,Age 35 — consensus 120 overvalues by 25 spots vs my rank 145,,,,,0,NONE,,,,0,
+Kevin Byard,DB,TEN,32,130,145,13,15,R13,-15,0,Age 32 DB — dynasty bust — avoid entirely,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,DECLINING,Age 32 — consensus 130 overvalues by 15 spots vs my rank 145,,,,,0,NONE,,,,0,
+Samaje Perine,RB,DEN,30,130,148,13,15,R13,-18,0,Age 30 RB — dynasty bust — never draft,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.8,🟢 LOW RISK,37.0,DECLINING,Age 30 — consensus 130 overvalues by 18 spots vs my rank 148,,,,,0,NONE,,,,0,
+Kirk Cousins,QB,ATL,38,120,148,12,15,R12,-28,0,Age 38 QB — dynasty bust — avoid entirely,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.3,🟢 LOW RISK,37.0,DECLINING,Age 38 — consensus 120 overvalues by 28 spots vs my rank 148,,,,,0,NONE,,,,0,
+Jordy Nelson,WR,FA,35,150,165,15,17,R15,-15,0,Age 35 — retired — do not draft,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.4,🟢 LOW RISK,37.0,DECLINING,Age 35 — consensus 150 overvalues by 15 spots vs my rank 165,,,,,0,NONE,,,,0,`;
 
 const _RAW_IDP = `player,pos,team,age,proj_sacks,proj_solo_tackles,proj_ints,proj_tfl,proj_fppg,idp_tier,draft_round_target
 Abdul Carter,EDGE,PHI,23,12,45,2,8,22.1,Elite,R3
@@ -985,6 +1047,8 @@ function init(){
     p.dp_value_2qb=p.dp_value_2qb!==''?n(p.dp_value_2qb):null;
     p.dp_rank_2qb=p.dp_rank_2qb!==''?n(p.dp_rank_2qb):null;
     p.dp_vs_my_rank=p.dp_vs_my_rank!==''?n(p.dp_vs_my_rank):null;
+    p.is_rookie=n(p.is_rookie)||0;
+    p.future_value=n(p.future_value);
     p.target_round=n(p.target_round)||10; p.adp_round=n(p.adp_round)||10;
     p.vorp_adjusted=n(p.vorp_adjusted); p.vorp_2qb_adjusted=p.vorp_2qb_adjusted!==''?n(p.vorp_2qb_adjusted):null;
     p.proj_pts_2026=n(p.proj_pts_2026); p.ceiling_score=n(p.ceiling_score);
@@ -1019,7 +1083,7 @@ function init(){
 // ═══════════════════════════════════════════════════════════
 function go(tab){
   document.querySelectorAll('.nav-tab').forEach((t,i)=>{
-    const tabs=['master','vorp','injury','idp','vegas','rounds','draft'];
+    const tabs=['master','vorp','injury','idp','vegas','rounds','draft','rookies'];
     t.classList.toggle('active', tabs[i]===tab);
   });
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -1032,6 +1096,7 @@ function go(tab){
     else if(tab==='vegas'){renderVegas();buildVegasCards();}
     else if(tab==='rounds'){renderRounds();}
     else if(tab==='draft'){renderDraftPanel();}
+    else if(tab==='rookies'){renderRookiesTab();}
   }
   if(tab==='vorp') setTimeout(drawChart,100);
 }
@@ -1039,18 +1104,19 @@ function go(tab){
 // ═══════════════════════════════════════════════════════════
 // TAB 1 — MASTER BOARD
 // ═══════════════════════════════════════════════════════════
-let _bPos='ALL', _bSort={col:'master_score',dir:-1}, _bGem=false, _bSafe=false, _bCeil=false, _bBuyLow=false;
+let _bPos='ALL', _bSort={col:'master_score',dir:-1}, _bGem=false, _bSafe=false, _bCeil=false, _bBuyLow=false, _bRookie=false;
 
 function renderStatCards(){
   const gems=board.filter(p=>p.gem_flag==1).length;
   const rentals=board.filter(p=>p.bust_category==='RENTAL'||p.bust_category==='DECLINING').length;
   const buyLow=board.filter(p=>p.bust_category==='BUY_LOW').length;
   const high=board.filter(p=>p.injury_risk_score>=7).length;
+  const rookieCount=board.filter(p=>p.is_rookie==1).length;
   document.getElementById('statCards').innerHTML=`
     <div class="stat-card"><div class="label">Players Loaded</div><div class="value" style="color:var(--boost)">${board.length}</div></div>
     <div class="stat-card"><div class="label">💎 Gems Found</div><div class="value" style="color:var(--gem)">${gems}</div></div>
+    <div class="stat-card"><div class="label">🌟 2026 Rookies</div><div class="value" style="color:var(--qb)">${rookieCount}</div></div>
     <div class="stat-card"><div class="label">📉 Buy Low</div><div class="value" style="color:#f368e0">${buyLow}</div></div>
-    <div class="stat-card"><div class="label">🚫 Rental/Fade</div><div class="value" style="color:var(--bust)">${rentals}</div></div>
     <div class="stat-card"><div class="label">⚠️ High Risk</div><div class="value" style="color:#ff9f43">${high}</div></div>`;
 }
 
@@ -1065,6 +1131,7 @@ function setBToggle(flag, el){
   if(flag==='SAFE'){_bSafe=!_bSafe; el.classList.toggle('on',_bSafe);}
   if(flag==='CEIL'){_bCeil=!_bCeil; el.classList.toggle('on',_bCeil);}
   if(flag==='BUYLOW'){_bBuyLow=!_bBuyLow; el.classList.toggle('on',_bBuyLow);}
+  if(flag==='ROOKIE'){_bRookie=!_bRookie; el.classList.toggle('on',_bRookie);}
   renderBoard();
 }
 function setBSort(col){
@@ -1093,6 +1160,7 @@ function getFilteredBoard(){
     if(_bSafe&&p.injury_risk_score>3.0) return false;
     if(_bCeil&&p.ceiling_score<80) return false;
     if(_bBuyLow&&p.bust_category!=='BUY_LOW') return false;
+    if(_bRookie&&(!p.is_rookie||p.is_rookie==0||p.is_rookie==='0')) return false;
     if(q&&!p.player.toLowerCase().includes(q)&&!(p.team||'').toLowerCase().includes(q)) return false;
     return true;
   }).sort((a,b)=>{
@@ -1227,7 +1295,7 @@ function renderBoard(){
     return `<tr class="${rc}" style="cursor:pointer" onclick="toggleScorecard('${p.player.replace(/'/g,"\\'")}',this)">
       <td><strong>${p.my_rank}</strong></td>
       <td><strong style="color:${msC}">${ms||'—'}</strong></td>
-      <td>${prefix}${p.player}${p.injury_risk_score>=7?' 🔴':''}${cliff}</td>
+      <td>${prefix}${p.player}${p.injury_risk_score>=7?' 🔴':''}${cliff}${p.is_rookie==1?' <span style="color:var(--qb);font-size:10px">🌟</span>':''}</td>
       <td>${posBadge(p.pos)}</td>
       <td>${p.team}</td>
       <td>${p.age}</td>
@@ -1885,6 +1953,98 @@ function checkAlerts(){
     }
   }
   document.getElementById('draftAlerts').innerHTML=powerHtml+threatHtml+alerts.map(a=>`<div class="alert">${a}</div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB 8 — ROOKIES & TAXI
+// ═══════════════════════════════════════════════════════════
+let _rkGrade='ALL', _rkPos='ALL';
+
+function setRkPill(grade, el){
+  _rkGrade=grade;
+  document.querySelectorAll('[id^="rk-"]').forEach(e=>{
+    if(['ALL','ELITE_TAXI','STRONG_TAXI','SPECULATIVE'].some(g=>e.id.endsWith(g.replace('_','-'))||e.id==='rk-ALL')) e.classList.remove('on');
+  });
+  el.classList.add('on');
+  renderRookiesTab();
+}
+function setRkPos(pos, el){
+  _rkPos=_rkPos===pos?'ALL':pos;
+  document.querySelectorAll('[id^="rk-"]').forEach(e=>{
+    if(['QB','RB','WR','TE','IDP'].some(p=>e.id==='rk-'+p)) e.classList.remove('on');
+  });
+  if(_rkPos!=='ALL') el.classList.add('on');
+  renderRookiesTab();
+}
+
+function taxiBadgeHtml(grade){
+  if(grade==='ELITE_TAXI')  return '<span class="taxi-elite">⭐ ELITE TAXI</span>';
+  if(grade==='STRONG_TAXI') return '<span class="taxi-strong">💪 STRONG</span>';
+  if(grade==='SPECULATIVE') return '<span class="taxi-spec">🎰 SPEC</span>';
+  return '<span class="taxi-spec">—</span>';
+}
+
+function renderRookiesTab(){
+  const rookies = board.filter(p => p.is_rookie==1).filter(p=>{
+    if(_rkGrade!=='ALL' && p.taxi_grade!==_rkGrade) return false;
+    if(_rkPos!=='ALL'){
+      if(_rkPos==='IDP' && !isIDP(p.pos)) return false;
+      if(_rkPos!=='IDP' && p.pos!==_rkPos) return false;
+    }
+    return true;
+  }).sort((a,b)=>(a.my_rank||999)-(b.my_rank||999));
+
+  // Stat cards
+  const elite=board.filter(p=>p.is_rookie==1&&p.taxi_grade==='ELITE_TAXI').length;
+  const strong=board.filter(p=>p.is_rookie==1&&p.taxi_grade==='STRONG_TAXI').length;
+  const spec=board.filter(p=>p.is_rookie==1&&p.taxi_grade==='SPECULATIVE').length;
+  document.getElementById('rookieStats').innerHTML=`
+    <div class="stat-card"><div class="label">2026 Rookies</div><div class="value" style="color:var(--qb)">${board.filter(p=>p.is_rookie==1).length}</div></div>
+    <div class="stat-card"><div class="label">⭐ Elite Taxi</div><div class="value" style="color:var(--qb)">${elite}</div></div>
+    <div class="stat-card"><div class="label">💪 Strong Taxi</div><div class="value" style="color:var(--gem)">${strong}</div></div>
+    <div class="stat-card"><div class="label">🎰 Speculative</div><div class="value" style="color:var(--muted)">${spec}</div></div>
+  `;
+
+  // Cards view
+  document.getElementById('rookieCards').innerHTML=rookies.filter(p=>p.taxi_grade==='ELITE_TAXI'||p.taxi_grade==='STRONG_TAXI').map(p=>{
+    const gradeClass=p.taxi_grade==='ELITE_TAXI'?'elite':'strong';
+    const vd=window._vegasMap?.[p.player.toLowerCase()];
+    const vegasLine=vd?`<span style="color:${vd.vegas_flag==='BOOST'?'var(--boost)':vd.vegas_flag==='FADE'?'var(--bust)':'var(--muted)'};font-size:10px">🎰 ${vd.vegas_flag} ${vd.win_total}W</span>`:'';
+    return `<div class="rookie-card ${gradeClass}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <strong>${p.player}</strong> ${posBadge(p.pos)} <span style="color:var(--muted);font-size:11px">${p.team} · Age ${p.age}</span>
+        </div>
+        ${taxiBadgeHtml(p.taxi_grade)}
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${p.rookie_context||p.notes||''}</div>
+      <div style="display:flex;gap:12px;font-size:11px">
+        <span>Rank <strong style="color:var(--text)">#${p.my_rank}</strong></span>
+        <span>R${p.target_round}</span>
+        <span>Future <strong style="color:var(--idp)">${p.future_value||'?'}</strong></span>
+        ${p.dp_value_2qb?`<span>DP <strong>${p.dp_value_2qb.toLocaleString()}</strong></span>`:''}
+        ${vegasLine}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Table view
+  document.getElementById('rookieBody').innerHTML=rookies.map(p=>`
+    <tr>
+      <td><span class="rnd-badge">${p.adp_round?'R'+p.adp_round:'?'}</span></td>
+      <td><strong>${p.player}</strong></td>
+      <td>${posBadge(p.pos)}</td>
+      <td>${p.team}</td>
+      <td>${p.age}</td>
+      <td>${taxiBadgeHtml(p.taxi_grade)}</td>
+      <td>${p.my_rank||'—'}</td>
+      <td><span class="rnd-badge">R${p.target_round}</span></td>
+      <td>${p.proj_pts_2026||'—'}</td>
+      <td>${p.ceiling_score||'—'}</td>
+      <td>${p.future_value||'—'}</td>
+      <td style="color:var(--muted);font-size:11px">${p.dp_value_2qb?p.dp_value_2qb.toLocaleString():'—'}</td>
+    </tr>
+  `).join('');
 }
 
 // ═══════════════════════════════════════════════════════════
