@@ -701,6 +701,12 @@ const BUST_CAT_STYLE={
   SAFE:    {color:'var(--gem)', icon:'🟢', label:'SAFE'},
   NONE:    {color:'var(--muted)',icon:'',  label:'—'},
 };
+const POS_COLORS={QB:'#e17055',RB:'#00b894',WR:'#0984e3',TE:'#fdcb6e',EDGE:'#e84393',LB:'#a29bfe',DB:'#55efc4',CB:'#55efc4',DL:'#fd79a8',K:'#b2bec3'};
+function posBadge(pos){
+  const c=POS_COLORS[pos]||'#636e72';
+  return `<span style="background:${c}22;color:${c};border:1px solid ${c}44;border-radius:3px;padding:1px 5px;font-size:10px;font-weight:700">${pos||'?'}</span>`;
+}
+
 function bustBadge(p){
   const cat=p.bust_category||'NONE';
   const s=BUST_CAT_STYLE[cat]||BUST_CAT_STYLE.NONE;
